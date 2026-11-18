@@ -47,6 +47,10 @@ package struct OutcomeCard: View {
                         Button(loc.t("install.reveal")) { revealInFinder(build.archivePath) }
                     }
                 }
+                if build.needsReplaceOldImgReminder {
+                    CardDivider()
+                    replaceOldImgRow
+                }
                 CardDivider()
                 CardDisclosure(
                     loc.t("dev.firstInstallGuide.title"),
@@ -72,6 +76,25 @@ package struct OutcomeCard: View {
                     .padding(.top, 2)
                     .padding(.bottom, 14)
                 }
+            }
+        }
+        if build.done && build.runningTarget != BuildTarget.mac && build.needsReplaceOldImgReminder && build.installedOn.isEmpty {
+            CardGroup(loc.t("imgGuide.replaceOldImgTitle")) {
+                replaceOldImgRow
+            }
+        }
+    }
+
+    @ViewBuilder private var replaceOldImgRow: some View {
+        let imgName = build.updatedImgPath.isEmpty ? "romfs.img" : (build.updatedImgPath as NSString).lastPathComponent
+        CardRow(
+            loc.t("imgGuide.replaceOldImgTitle"),
+            detail: String(format: loc.t("imgGuide.replaceOldImgBody"), imgName),
+            dot: LauncherPalette.building,
+            help: build.updatedImgPath
+        ) {
+            if !build.updatedImgPath.isEmpty {
+                Button(loc.t("install.reveal")) { revealInFinder(build.updatedImgPath) }
             }
         }
     }

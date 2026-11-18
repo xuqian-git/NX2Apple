@@ -83,6 +83,9 @@ package struct BuildFailureCard: View {
             case .updateMismatch:
                 fix(kind, "macFail.updateMismatch.button")
                 Button(loc.t("fail.showFolder")) { m.showFailureFolder() }.disabled(m.running)
+            case .mngSharedFonts:
+                fix(kind, "macFail.mngSharedFonts.button")
+                Button(loc.t("fail.showFolder")) { m.showFailureFolder() }.disabled(m.running)
             case .severalGames, .noTitleID, .diskFull, .staleProfile:
                 fix(kind, "fail.showFolder")
             case .cloudFolder, .volumeFormat:

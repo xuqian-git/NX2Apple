@@ -86,6 +86,10 @@ package struct ExportSteps: View {
                     .opacity(inert ? ExportGrid.quiet : 1)
             }
             VStack(alignment: .leading, spacing: ExportGrid.noteGap) {
+                if build.needsReplaceOldImgReminder && !sentDone {
+                    let imgName = build.updatedImgPath.isEmpty ? "romfs.img" : (build.updatedImgPath as NSString).lastPathComponent
+                    note(.warning, String(format: loc.t("imgGuide.replaceOldImgBody"), imgName))
+                }
                 if toDrive { driveRow; driveStatus } else { deviceRow; deviceStatus }
             }
             .padding(.leading, ExportGrid.axis).padding(.trailing, ExportGrid.inset).padding(.bottom, ExportGrid.inset)
