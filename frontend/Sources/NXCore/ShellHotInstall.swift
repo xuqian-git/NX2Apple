@@ -14,6 +14,7 @@ package enum ShellHotInstall {
     package static let minRemainingLifetime: Int64 = 24 * 3600
 
     package struct HostBeacon: Codable, Equatable {
+        package var streamingSettingsVersion: Int?
         package var schema: Int
         package var glueVersion: Int
         package var bundleID: String
@@ -23,7 +24,8 @@ package enum ShellHotInstall {
         package var expiresAtEpoch: Int64?
 
         package init(schema: Int = 1, glueVersion: Int = ShellHotInstall.glueVersion, bundleID: String, teamID: String,
-                     chain: String, version: String, expiresAtEpoch: Int64? = nil) {
+                     chain: String, version: String, expiresAtEpoch: Int64? = nil, streamingSettingsVersion: Int? = 1) {
+            self.streamingSettingsVersion = streamingSettingsVersion
             self.schema = schema
             self.glueVersion = glueVersion
             self.bundleID = bundleID
@@ -83,6 +85,10 @@ package enum ShellHotInstall {
         }
         guard !team.isEmpty, beacon.teamID == team else {
             return .incompatible("teamID \(beacon.teamID.isEmpty ? "none" : beacon.teamID)")
+        }
+        // A framework-only update cannot add settings or local-network declarations to an older app.
+        guard (beacon.streamingSettingsVersion ?? 0) >= 1 else {
+            return .incompatible("shell lacks streaming settings, full app update required")
         }
         if let exp = beacon.expiresAtEpoch, exp - nowEpoch < minRemainingLifetime {
             return .expiringSoon
