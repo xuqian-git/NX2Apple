@@ -1,0 +1,18 @@
+plugins { id 'com.android.application' }
+android {
+    namespace 'dev.nxstream'
+    compileSdk 35
+    defaultConfig { applicationId 'dev.nxstream'; minSdk 30; targetSdk 35; versionCode Integer.parseInt(System.getenv('GITHUB_RUN_NUMBER') ?: '1'); versionName '0.1-prototype' }
+    signingConfigs {
+        stream {
+            if (System.getenv('NXSTREAM_KEYSTORE')) {
+                storeFile file(System.getenv('NXSTREAM_KEYSTORE'))
+                storePassword System.getenv('NXSTREAM_KEYSTORE_PASSWORD')
+                keyAlias 'nxstream'
+                keyPassword System.getenv('NXSTREAM_KEYSTORE_PASSWORD')
+            }
+        }
+    }
+    buildTypes { release { signingConfig signingConfigs.stream; minifyEnabled false } }
+    compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
+}

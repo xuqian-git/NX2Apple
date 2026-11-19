@@ -1,0 +1,22 @@
+package dev.nxstream;
+import java.nio.*;
+import java.util.*;
+public class WireTest {
+ static final long TOKEN=0x123456789abcdef0L;
+ static byte[] packet(int seq,int index,int total,long token){int n=Math.min(Wire.CHUNK,total-index*Wire.CHUNK);ByteBuffer b=ByteBuffer.allocate(Wire.HEADER+n).order(ByteOrder.BIG_ENDIAN);b.putInt(0x4e585354).put((byte)1).put((byte)1).putShort((short)1).putInt(seq).putLong(1).putShort((short)1920).putShort((short)1080).putShort((short)0).putShort((short)0).putInt(48000).putShort((short)index).putShort((short)((total+1151)/1152)).putInt(total).putLong(token);while(b.hasRemaining())b.put((byte)(index+1));return b.array();}
+ static void require(boolean value){if(!value)throw new AssertionError();}
+ static Wire.Frame add(Wire w,byte[] p,long now){return w.accept(p,p.length,now);}
+ public static void main(String[] args){
+  Wire w=new Wire(TOKEN);require(add(w,packet(1,1,2000,TOKEN),1)==null);require(add(w,packet(1,1,2000,TOKEN),2)==null);
+  Wire.Frame f=add(w,packet(1,0,2000,TOKEN),3);require(f!=null&&f.data.length==2000&&f.data[0]==1&&f.data[1999]==2);
+  require(add(w,packet(2,0,100,TOKEN+1),4)==null);
+  byte[] bad=packet(2,0,100,TOKEN);ByteBuffer.wrap(bad).putInt(36,Integer.MAX_VALUE);require(add(w,bad,4)==null);
+  require(add(w,packet(3,0,2000,TOKEN),5)==null);require(add(w,packet(3,1,2000,TOKEN),70_000_000)==null);require(w.dropped==1);
+  byte[] truncated=Arrays.copyOf(packet(4,0,100,TOKEN),50);require(add(w,truncated,80_000_000)==null);
+  Random random=new Random(1);for(int i=0;i<10000;i++){byte[] junk=new byte[random.nextInt(1300)];random.nextBytes(junk);w.accept(junk,junk.length,i);}
+  // Conflicting metadata must not poison an existing frame or splice two frames.
+  byte[] first=packet(5,0,2000,TOKEN),second=packet(5,1,2000,TOKEN);require(add(w,first,90_000_000)==null);ByteBuffer.wrap(second).putShort(20,(short)2560).putShort(22,(short)1440);require(add(w,second,90_000_001)==null);
+  require(add(w,packet(5,1,2000,TOKEN),90_000_002)!=null);
+  System.out.println("Wire tests passed: reorder, duplicate, token, bounds, expiry, metadata, 10000 malformed packets");
+ }
+}

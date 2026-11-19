@@ -1,0 +1,185 @@
+name: NXStream build and upstream sync
+on:
+  push:
+    branches: [main, 'feature/nxstream']
+    paths: ['streaming/**', '.github/workflows/nxstream.yml', '.upstream-ref', 'patches/**', 'frontend/**', 'frontend-ios/**', 'tools/**']
+  workflow_dispatch:
+    inputs:
+      sync_upstream:
+        description: 'Merge upstream into a candidate and promote only after both builds pass (main only)'
+        type: boolean
+        default: true
+  schedule:
+    - cron: '30 20 * * *'
+permissions:
+  contents: read
+concurrency:
+  group: nxstream-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  prepare:
+    if: github.repository == 'xuqian-git/NX2Apple'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    outputs:
+      ref: ${{ steps.prepare.outputs.ref }}
+      pr: ${{ steps.prepare.outputs.pr }}
+      head: ${{ steps.prepare.outputs.head }}
+      base: ${{ steps.prepare.outputs.base }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: prepare
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SYNC: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.sync_upstream && github.ref == 'refs/heads/main') }}
+        run: |
+          set -euo pipefail
+          echo "ref=$GITHUB_SHA" >> "$GITHUB_OUTPUT"
+          echo "head=$GITHUB_SHA" >> "$GITHUB_OUTPUT"
+          if [ "$SYNC" != true ]; then exit 0; fi
+          git config user.name 'nxstream-sync'
+          git config user.email 'actions@users.noreply.github.com'
+          git fetch origin main
+          echo "base=$(git rev-parse origin/main)" >> "$GITHUB_OUTPUT"
+          git checkout -B "sync/nxstream-$GITHUB_RUN_ID" origin/main
+          git fetch https://github.com/LNPANDY/NX2Apple.git main
+          if git merge-base --is-ancestor FETCH_HEAD HEAD; then
+            echo "ref=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+            echo "head=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+            echo 'Already includes upstream.' >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          git merge --no-ff FETCH_HEAD -m 'sync: merge NX2Apple upstream for validated streaming build'
+          git push origin HEAD
+          printf '%s\n' 'Automatic upstream merge candidate. This workflow builds Android, the overlaid engine, and the macOS launcher before merging. Conflicts or failed checks leave main unchanged.' > "$RUNNER_TEMP/sync-body.md"
+          pr=$(gh pr create --repo "$GITHUB_REPOSITORY" --base main --head "sync/nxstream-$GITHUB_RUN_ID" --title 'Sync NX2Apple upstream for NXStream' --body-file "$RUNNER_TEMP/sync-body.md")
+          echo "pr=$pr" >> "$GITHUB_OUTPUT"
+          echo "ref=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          echo "head=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+  android:
+    needs: prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare.outputs.ref }}
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+          log-accepted-android-sdk-licenses: false
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.13'
+      - run: streaming/check.sh
+      - run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+      - name: Restore dedicated application signing key
+        env:
+          KEYSTORE: ${{ secrets.NXSTREAM_KEYSTORE_B64 }}
+        run: |
+          test -n "$KEYSTORE"
+          printf '%s' "$KEYSTORE" | base64 --decode > "$RUNNER_TEMP/nxstream.jks"
+      - name: Build signed receiver
+        env:
+          NXSTREAM_KEYSTORE: ${{ runner.temp }}/nxstream.jks
+          NXSTREAM_KEYSTORE_PASSWORD: ${{ secrets.NXSTREAM_KEYSTORE_PASSWORD }}
+        run: gradle -p streaming/android --no-daemon assembleRelease lintRelease
+      - name: Package
+        run: |
+          mkdir -p dist
+          cp streaming/android/app/build/outputs/apk/release/app-release.apk dist/NXStream-Android.apk
+          cp streaming/README.zh-CN.md dist/
+          (cd dist && sha256sum NXStream-Android.apk > SHA256SUMS-android.txt)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: NXStream-Android
+          path: dist/*
+          if-no-files-found: error
+  mac:
+    needs: prepare
+    runs-on: xcode-27
+    timeout-minutes: 90
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_27.2.app/Contents/Developer
+      NX2APPLE_TRY_LOCAL_CACHE: ${{ github.workspace }}/.nxstream-cache
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare.outputs.ref }}
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: actions/cache@v4
+        with:
+          path: .nxstream-cache
+          key: nxstream-mac-tools-${{ hashFiles('frontend/tools/bundle_tools.sh', 'frontend/bundled-python/requirements.txt') }}
+      - run: xcodebuild -version
+      - run: streaming/check.sh
+      - name: Validate engine integration
+        run: |
+          python3 tools/engine.py sync
+          python3 tools/engine.py check
+          python3 tools/engine.py tree --out "$RUNNER_TEMP/nxstream-engine"
+          python3 streaming/overlay.py "$RUNNER_TEMP/nxstream-engine"
+          make -C "$RUNNER_TEMP/nxstream-engine/dm/host" GAME=010015100B514000 dmhost -j3 > "$RUNNER_TEMP/host.log" 2>&1 || { tail -100 "$RUNNER_TEMP/host.log"; exit 1; }
+      - name: Build macOS app with streaming engine
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: streaming/build_mac.sh "$RUNNER_TEMP/nxstream-mac"
+      - name: Compile production iOS app with synthetic modules
+        run: |
+          export PATH="$RUNNER_TEMP/nxstream-mac/NX2Apple.app/Contents/Resources/tools/bin:$PATH"
+          GAME=010015100B514000 python3 "$RUNNER_TEMP/nxstream-engine/dm/ios/tools/build_smoke.py" --output "$RUNNER_TEMP/nxstream-ios-smoke" > "$RUNNER_TEMP/ios-smoke.log" 2>&1 || { tail -100 "$RUNNER_TEMP/ios-smoke.log"; exit 1; }
+      - name: Validate shell and launcher
+        run: |
+          swift build --package-path frontend-ios
+          swift test --package-path frontend-ios
+          swift test --package-path frontend --skip 'LauncherControlWidthTests|LauncherPerformanceTests'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: NX2Apple-macOS-arm64
+          path: |
+            ${{ runner.temp }}/nxstream-mac/NX2Apple-macOS-arm64.zip
+            ${{ runner.temp }}/nxstream-mac/SHA256SUMS-mac.txt
+            ${{ runner.temp }}/nxstream-mac/README.zh-CN.md
+          if-no-files-found: error
+  promote:
+    needs: [prepare, android, mac]
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Merge validated upstream candidate
+        if: needs.prepare.outputs.pr != ''
+        env:
+          PR: ${{ needs.prepare.outputs.pr }}
+          HEAD_SHA: ${{ needs.prepare.outputs.head }}
+          BASE_SHA: ${{ needs.prepare.outputs.base }}
+        run: |
+          test "$(gh api "repos/$GH_REPO/git/ref/heads/main" --jq .object.sha)" = "$BASE_SHA" || { echo 'main changed during validation; rerun synchronization'; exit 1; }
+          gh pr merge "$PR" --repo "$GH_REPO" --merge --match-head-commit "$HEAD_SHA"
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Publish prototype builds
+        env:
+          HEAD_SHA: ${{ needs.prepare.outputs.head }}
+        run: |
+          printf '%s\n' 'Experimental NXStream build. Contains the macOS NX2Apple launcher with the streaming engine and the signed Android receiver.' '' 'Build and protocol checks passed. iPhone game playback, car audio routing, latency, and thermal stability still require device testing. See the included README.zh-CN.md.' > notes.md
+          gh release create "nxstream-$GITHUB_RUN_NUMBER-$GITHUB_RUN_ATTEMPT" dist/* --repo "$GH_REPO" --target "$HEAD_SHA" --prerelease --title "NXStream prototype $GITHUB_RUN_NUMBER" --notes-file notes.md
