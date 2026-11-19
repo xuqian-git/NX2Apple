@@ -41,7 +41,8 @@ def apply(tree):
         [g_q4 signalEvent:stream_event value:ready];
         id<MTLCommandBuffer> stream = q_cb();
         [stream encodeWaitForEvent:stream_event value:ready];
-        nx_stream_capture(src, stream, crop);
+        double picture_width, picture_height; present_shape(src, &picture_width, &picture_height);
+        nx_stream_capture(present_raw_src(src), stream, crop, atomic_load(&g_origin_ll), picture_width / picture_height);
         [stream encodeSignalEvent:stream_event value:copied];
         if (nx_stream_black()) {
             pthread_mutex_lock(&g_pq_mu); g_pq_inflight++; pthread_mutex_unlock(&g_pq_mu);

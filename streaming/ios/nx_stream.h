@@ -7,5 +7,6 @@ int nx_stream_black(void);
 void nx_stream_stop(void);
 #ifdef __OBJC__
 #import <Metal/Metal.h>
-void nx_stream_capture(id<MTLTexture> source, id<MTLCommandBuffer> command, const int crop[4]);
+// Source contains display-encoded bytes in a non-sRGB texture view, matching NVN scan-out.
+void nx_stream_capture(id<MTLTexture> source, id<MTLCommandBuffer> command, const int crop[4], int flip, double aspect);
 #endif

@@ -127,16 +127,16 @@ static int initialize(id<MTLDevice> device){
     NSDictionary *attrs=@{(__bridge NSString *)kCVPixelBufferWidthKey:@(width),(__bridge NSString *)kCVPixelBufferHeightKey:@(height),(__bridge NSString *)kCVPixelBufferPixelFormatTypeKey:@(kCVPixelFormatType_32BGRA),(__bridge NSString *)kCVPixelBufferMetalCompatibilityKey:@YES,(__bridge NSString *)kCVPixelBufferIOSurfacePropertiesKey:@{}};
     if(CVPixelBufferPoolCreate(NULL,NULL,(__bridge CFDictionaryRef)attrs,&pool)!=kCVReturnSuccess)return 0;
     if(CVMetalTextureCacheCreate(NULL,NULL,device,NULL,&cache)!=kCVReturnSuccess)return 0;
-    NSString *code=@"#include <metal_stdlib>\nusing namespace metal; struct V {float4 p [[position]];float2 uv;}; vertex V vs(uint i [[vertex_id]]){float2 p=float2((i<<1)&2,i&2);return {float4(p*2-1,0,1),float2(p.x,1-p.y)};} fragment float4 fs(V v [[stage_in]],texture2d<float> t [[texture(0)]],constant float4 &crop [[buffer(0)]]){constexpr sampler s(coord::normalized,filter::linear,address::clamp_to_edge);return t.sample(s,crop.xy+v.uv*crop.zw);}";
+    NSString *code=@"#include <metal_stdlib>\nusing namespace metal; struct V {float4 p [[position]];float2 uv;}; struct Crop {float4 rect;float4 edge;}; vertex V vs(uint i [[vertex_id]]){float2 p=float2((i<<1)&2,i&2);return {float4(p*2-1,0,1),float2(p.x,1-p.y)};} fragment float4 fs(V v [[stage_in]],texture2d<float> t [[texture(0)]],constant Crop &crop [[buffer(0)]]){constexpr sampler s(coord::normalized,filter::linear,address::clamp_to_edge);return t.sample(s,clamp(crop.rect.xy+v.uv*crop.rect.zw,crop.edge.xy,crop.edge.zw));}";
     NSError *error=nil;id<MTLLibrary> lib=[device newLibraryWithSource:code options:nil error:&error];
-    MTLRenderPipelineDescriptor *d=[MTLRenderPipelineDescriptor new];d.vertexFunction=[lib newFunctionWithName:@"vs"];d.fragmentFunction=[lib newFunctionWithName:@"fs"];d.colorAttachments[0].pixelFormat=MTLPixelFormatBGRA8Unorm_sRGB;
+    MTLRenderPipelineDescriptor *d=[MTLRenderPipelineDescriptor new];d.vertexFunction=[lib newFunctionWithName:@"vs"];d.fragmentFunction=[lib newFunctionWithName:@"fs"];d.colorAttachments[0].pixelFormat=MTLPixelFormatBGRA8Unorm;
     pipeline=[device newRenderPipelineStateWithDescriptor:d error:&error];if(!pipeline){fprintf(stderr,"[NXStream] pipeline error: %s\n",error.description.UTF8String);return 0;}
     video_queue=dispatch_queue_create("nxstream.video",DISPATCH_QUEUE_SERIAL);
     atomic_store(&running,1);if(pthread_create(&audio_thread,NULL,audio_main,NULL)){atomic_store(&running,0);return 0;}
     fprintf(stderr,"[NXStream] %dx%d H.264 to %s:48000 (LAN plaintext prototype)\n",width,height,host);
     return 1;
 }
-void nx_stream_capture(id<MTLTexture> source,id<MTLCommandBuffer> cb,const int crop[4]){
+void nx_stream_capture(id<MTLTexture> source,id<MTLCommandBuffer> cb,const int crop[4],int flip,double aspect){
     if(!nx_stream_enabled())return;
     if(!atomic_load(&running)){if(attempted)return;attempted=1;if(!initialize(source.device)){atomic_store(&failed,1);fprintf(stderr,"[NXStream] initialization failed; verify host/token/size and hardware encoding\n");return;}}
     if(atomic_exchange(&busy,1))return;
@@ -145,13 +145,18 @@ void nx_stream_capture(id<MTLTexture> source,id<MTLCommandBuffer> cb,const int c
     CVBufferSetAttachment(pixel,kCVImageBufferColorPrimariesKey,kCVImageBufferColorPrimaries_ITU_R_709_2,kCVAttachmentMode_ShouldPropagate);
     CVBufferSetAttachment(pixel,kCVImageBufferTransferFunctionKey,kCVImageBufferTransferFunction_sRGB,kCVAttachmentMode_ShouldPropagate);
     CVBufferSetAttachment(pixel,kCVImageBufferYCbCrMatrixKey,kCVImageBufferYCbCrMatrix_ITU_R_709_2,kCVAttachmentMode_ShouldPropagate);
-    CVReturn result=CVMetalTextureCacheCreateTextureFromImage(NULL,cache,pixel,NULL,MTLPixelFormatBGRA8Unorm_sRGB,width,height,0,&texture);
+    CVReturn result=CVMetalTextureCacheCreateTextureFromImage(NULL,cache,pixel,NULL,MTLPixelFormatBGRA8Unorm,width,height,0,&texture);
     if(result||!texture){CFRelease(pixel);atomic_store(&busy,0);return;}
-    MTLRenderPassDescriptor *pass=[MTLRenderPassDescriptor renderPassDescriptor];pass.colorAttachments[0].texture=CVMetalTextureGetTexture(texture);pass.colorAttachments[0].loadAction=MTLLoadActionDontCare;pass.colorAttachments[0].storeAction=MTLStoreActionStore;
+    MTLRenderPassDescriptor *pass=[MTLRenderPassDescriptor renderPassDescriptor];pass.colorAttachments[0].texture=CVMetalTextureGetTexture(texture);pass.colorAttachments[0].loadAction=MTLLoadActionClear;pass.colorAttachments[0].clearColor=MTLClearColorMake(0,0,0,1);pass.colorAttachments[0].storeAction=MTLStoreActionStore;
     id<MTLRenderCommandEncoder> r=[cb renderCommandEncoderWithDescriptor:pass];
     if(!r){CFRelease(texture);CFRelease(pixel);atomic_store(&busy,0);return;}
-    float uv[4]={0,0,1,1};
+    float uv[8]={0,0,1,1,0.5f/source.width,0.5f/source.height,1-0.5f/source.width,1-0.5f/source.height};
     if(crop&&crop[2]>0&&crop[3]>0){uv[0]=(float)crop[0]/source.width;uv[1]=(float)crop[1]/source.height;uv[2]=(float)crop[2]/source.width;uv[3]=(float)crop[3]/source.height;}
+    uv[4]=uv[0]+0.5f/source.width;uv[5]=uv[1]+0.5f/source.height;uv[6]=uv[0]+uv[2]-0.5f/source.width;uv[7]=uv[1]+uv[3]-0.5f/source.height;
+    if(flip){uv[1]+=uv[3];uv[3]=-uv[3];}
+    double vw=width,vh=height;
+    if(aspect>0){if(vw/vh>aspect)vw=vh*aspect;else vh=vw/aspect;}
+    [r setViewport:(MTLViewport){(width-vw)/2,(height-vh)/2,vw,vh,0,1}];
     [r setRenderPipelineState:pipeline];[r setFragmentTexture:source atIndex:0];[r setFragmentBytes:uv length:sizeof uv atIndex:0];[r drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:3];[r endEncoding];
     uint64_t pts=uptime_us();
     [cb addCompletedHandler:^(id<MTLCommandBuffer> done){
