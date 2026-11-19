@@ -199,7 +199,7 @@ struct ShellSettingsView: View {
         }
         .sheet(isPresented: $streamingPresented) {
             NavigationStack {
-                Form { StreamingSettingsSection(store: store) }
+                StreamingSettingsView(store: store)
                     .navigationTitle(ShellStrings.text("Streaming"))
                     .toolbar {
                         ToolbarItem(placement: .confirmationAction) {
