@@ -37,7 +37,8 @@ static uint64_t uptime_us(void){return clock_gettime_nsec_np(CLOCK_UPTIME_RAW)/1
 int nx_stream_enabled(void){const char *s=getenv("DM_STREAM_HOST");return s&&*s;}
 int nx_stream_black(void){const char *s=getenv("DM_STREAM_BLACK");return nx_stream_enabled()&&(!s||atoi(s)!=0);}
 static void send_frame(const uint8_t *data,size_t len,int type,int key,uint64_t pts,unsigned channels){
-    if(!atomic_load(&running)||!len||len>2*1024*1024)return;
+    if(!atomic_load(&running)||!len)return;
+    if(len>2*1024*1024){if(type==1)atomic_store(&force_key,1);return;}
     uint32_t seq=type==1?++video_seq:++audio_seq;
     size_t count=(len+1151)/1152;
     for(size_t i=0;i<count;i++){
@@ -116,11 +117,13 @@ static int initialize(id<MTLDevice> device){
     sockfd=socket(AF_INET,SOCK_DGRAM,0);if(sockfd<0)return 0;
     int size=1024*1024;setsockopt(sockfd,SOL_SOCKET,SO_SNDBUF,&size,sizeof size);fcntl(sockfd,F_SETFL,O_NONBLOCK);
     if(connect(sockfd,(struct sockaddr *)&address,sizeof address)){close(sockfd);sockfd=-1;return 0;}
-    NSDictionary *spec=@{(__bridge NSString *)kVTVideoEncoderSpecification_EnableHardwareAcceleratedVideoEncoder:@YES,(__bridge NSString *)kVTVideoEncoderSpecification_EnableLowLatencyRateControl:@YES};
+    NSDictionary *spec=@{(__bridge NSString *)kVTVideoEncoderSpecification_RequireHardwareAcceleratedVideoEncoder:@YES,(__bridge NSString *)kVTVideoEncoderSpecification_EnableLowLatencyRateControl:@YES};
     OSStatus st=VTCompressionSessionCreate(NULL,width,height,kCMVideoCodecType_H264,(__bridge CFDictionaryRef)spec,NULL,NULL,encoded,NULL,&encoder);
     if(st){fprintf(stderr,"[NXStream] hardware encoder creation failed: %d\n",(int)st);return 0;}
     NSDictionary *props=@{(__bridge NSString *)kVTCompressionPropertyKey_RealTime:@YES,(__bridge NSString *)kVTCompressionPropertyKey_AllowFrameReordering:@NO,(__bridge NSString *)kVTCompressionPropertyKey_ExpectedFrameRate:@60,(__bridge NSString *)kVTCompressionPropertyKey_MaxKeyFrameInterval:@60,(__bridge NSString *)kVTCompressionPropertyKey_AverageBitRate:@(width==2880?35000000:width==2560?28000000:18000000),(__bridge NSString *)kVTCompressionPropertyKey_ProfileLevel:(__bridge NSString *)kVTProfileLevel_H264_High_AutoLevel};
     if(VTSessionSetProperties(encoder,(__bridge CFDictionaryRef)props)!=noErr)return 0;
+    NSDictionary *color=@{(__bridge NSString *)kVTCompressionPropertyKey_ColorPrimaries:(__bridge NSString *)kCVImageBufferColorPrimaries_ITU_R_709_2,(__bridge NSString *)kVTCompressionPropertyKey_TransferFunction:(__bridge NSString *)kCVImageBufferTransferFunction_sRGB,(__bridge NSString *)kVTCompressionPropertyKey_YCbCrMatrix:(__bridge NSString *)kCVImageBufferYCbCrMatrix_ITU_R_709_2};
+    if(VTSessionSetProperties(encoder,(__bridge CFDictionaryRef)color)!=noErr)return 0;
     NSDictionary *attrs=@{(__bridge NSString *)kCVPixelBufferWidthKey:@(width),(__bridge NSString *)kCVPixelBufferHeightKey:@(height),(__bridge NSString *)kCVPixelBufferPixelFormatTypeKey:@(kCVPixelFormatType_32BGRA),(__bridge NSString *)kCVPixelBufferMetalCompatibilityKey:@YES,(__bridge NSString *)kCVPixelBufferIOSurfacePropertiesKey:@{}};
     if(CVPixelBufferPoolCreate(NULL,NULL,(__bridge CFDictionaryRef)attrs,&pool)!=kCVReturnSuccess)return 0;
     if(CVMetalTextureCacheCreate(NULL,NULL,device,NULL,&cache)!=kCVReturnSuccess)return 0;
@@ -139,6 +142,9 @@ void nx_stream_capture(id<MTLTexture> source,id<MTLCommandBuffer> cb,const int c
     if(atomic_exchange(&busy,1))return;
     CVPixelBufferRef pixel=NULL;CVMetalTextureRef texture=NULL;
     if(CVPixelBufferPoolCreatePixelBuffer(NULL,pool,&pixel)!=kCVReturnSuccess){atomic_store(&busy,0);return;}
+    CVBufferSetAttachment(pixel,kCVImageBufferColorPrimariesKey,kCVImageBufferColorPrimaries_ITU_R_709_2,kCVAttachmentMode_ShouldPropagate);
+    CVBufferSetAttachment(pixel,kCVImageBufferTransferFunctionKey,kCVImageBufferTransferFunction_sRGB,kCVAttachmentMode_ShouldPropagate);
+    CVBufferSetAttachment(pixel,kCVImageBufferYCbCrMatrixKey,kCVImageBufferYCbCrMatrix_ITU_R_709_2,kCVAttachmentMode_ShouldPropagate);
     CVReturn result=CVMetalTextureCacheCreateTextureFromImage(NULL,cache,pixel,NULL,MTLPixelFormatBGRA8Unorm_sRGB,width,height,0,&texture);
     if(result||!texture){CFRelease(pixel);atomic_store(&busy,0);return;}
     MTLRenderPassDescriptor *pass=[MTLRenderPassDescriptor renderPassDescriptor];pass.colorAttachments[0].texture=CVMetalTextureGetTexture(texture);pass.colorAttachments[0].loadAction=MTLLoadActionDontCare;pass.colorAttachments[0].storeAction=MTLStoreActionStore;
