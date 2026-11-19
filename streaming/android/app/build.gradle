@@ -2,7 +2,7 @@ plugins { id 'com.android.application' }
 android {
     namespace 'dev.nxstream'
     compileSdk 35
-    defaultConfig { applicationId 'dev.nxstream'; minSdk 30; targetSdk 35; versionCode 1; versionName '0.1-prototype' }
+    defaultConfig { applicationId 'dev.nxstream'; minSdk 30; targetSdk 35; versionCode Integer.parseInt(System.getenv('GITHUB_RUN_NUMBER') ?: '1'); versionName '0.1-prototype' }
     signingConfigs {
         stream {
             if (System.getenv('NXSTREAM_KEYSTORE')) {

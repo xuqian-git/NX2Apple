@@ -59,7 +59,7 @@ class Manifest(unittest.TestCase):
         return p
 
     def publish(self, *extra, channel='stable', tag='v0.8.0', out='out', expect=0):
-        args = ['publish', '--engine-zip', str(self.engine), '--version', '0.8.0', '--channel', channel, '--tag', tag,
+        args = ['publish', '--repo', 'LNPANDY/NX2Apple', '--engine-zip', str(self.engine), '--version', '0.8.0', '--channel', channel, '--tag', tag,
                 '--out', str(self.tmp / out), '--pub', str(self.pubfile), '--built', '2026-10-31T02:00:00Z', *extra]
         self.assertEqual(R.main(args), expect)
         return self.tmp / out
@@ -319,7 +319,7 @@ class Unsigned(unittest.TestCase):
 
     def publish(self, *extra, channel='stable', tag='v0.8.0', out='out', expect=0):
         import contextlib, io
-        args = ['publish', '--engine-zip', str(self.engine), '--version', '0.8.0', '--channel', channel, '--tag', tag,
+        args = ['publish', '--repo', 'LNPANDY/NX2Apple', '--engine-zip', str(self.engine), '--version', '0.8.0', '--channel', channel, '--tag', tag,
                 '--out', str(self.tmp / out), '--pub', str(self.pubfile), '--built', '2026-10-31T02:00:00Z', *extra]
         buf = io.StringIO()
         with contextlib.redirect_stdout(buf): self.assertEqual(R.main(args), expect)
@@ -402,7 +402,7 @@ class ReleaseCandidate(unittest.TestCase):
 
     def publish_rc(self, *extra, channel='stable', version='0.8.0', tag='v0.8.0-rc1'):
         out = self.tmp / 'rc'
-        args = ['publish', '--engine-zip', str(self.engine), '--app-zip', str(self.app), '--version', version, '--channel', channel,
+        args = ['publish', '--repo', 'LNPANDY/NX2Apple', '--engine-zip', str(self.engine), '--app-zip', str(self.app), '--version', version, '--channel', channel,
                 '--tag', tag, '--out', str(out), '--pub', str(self.pubfile), '--built', '2026-10-31T02:00:00Z', *extra]
         self.assertEqual(self.run_main(args)[0], 0)
         return out / 'latest.json'

@@ -134,6 +134,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: streaming/build_mac.sh "$RUNNER_TEMP/nxstream-mac"
+      - name: Compile production iOS app with synthetic modules
+        run: |
+          export PATH="$RUNNER_TEMP/nxstream-mac/NX2Apple.app/Contents/Resources/tools/bin:$PATH"
+          GAME=010015100B514000 python3 "$RUNNER_TEMP/nxstream-engine/dm/ios/tools/build_smoke.py" --output "$RUNNER_TEMP/nxstream-ios-smoke" > "$RUNNER_TEMP/ios-smoke.log" 2>&1 || { tail -100 "$RUNNER_TEMP/ios-smoke.log"; exit 1; }
       - name: Validate shell and launcher
         run: |
           swift build --package-path frontend-ios

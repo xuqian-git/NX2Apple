@@ -17,6 +17,7 @@ public final class MainActivity extends Activity implements SurfaceHolder.Callba
     private CheckBox stereo;
     private Receiver receiver;
     private boolean ready;
+    private final ArrayDeque<String> messages=new ArrayDeque<>();
     private String ipAddresses(){
         StringBuilder b=new StringBuilder();
         try{for(NetworkInterface n:Collections.list(NetworkInterface.getNetworkInterfaces()))for(InetAddress a:Collections.list(n.getInetAddresses()))if(a instanceof Inet4Address&&!a.isLoopbackAddress())b.append(a.getHostAddress()).append("  ");}catch(Exception ignored){}
@@ -41,12 +42,13 @@ public final class MainActivity extends Activity implements SurfaceHolder.Callba
         Button hide=new Button(this);hide.setText("Hide controls (tap picture to show)");hide.setOnClickListener(v->controls.setVisibility(View.GONE));controls.addView(hide);
         ScrollView scroll=new ScrollView(this);scroll.addView(controls);root.addView(scroll,new FrameLayout.LayoutParams(-1,-2,Gravity.TOP));
         surface.setOnClickListener(v->controls.setVisibility(View.VISIBLE));setContentView(root);
+        getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_FULLSCREEN|View.SYSTEM_UI_FLAG_HIDE_NAVIGATION|View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
     }
     private void start(){
         if(!ready)return;
         String s=token.getText().toString().trim();if(!s.matches("[0-9a-fA-F]{16}")||s.equals("0000000000000000")){status.setText("Enter exactly 16 hex digits, not all zero.");return;}
-        if(receiver!=null)receiver.close();getPreferences(0).edit().putString("token",s).apply();
-        receiver=new Receiver(surface.getHolder().getSurface(),Long.parseUnsignedLong(s,16),stereo.isChecked(),message->runOnUiThread(()->{if(status!=null)status.setText(message);}));status.setText("Listening on UDP 48000…");
+        if(receiver!=null)receiver.close();messages.clear();getPreferences(0).edit().putString("token",s).apply();
+        receiver=new Receiver(surface.getHolder().getSurface(),Long.parseUnsignedLong(s,16),stereo.isChecked(),message->runOnUiThread(()->{if(status!=null){messages.addLast(message);while(messages.size()>4)messages.removeFirst();status.setText(String.join("\n",messages));}}));status.setText("Listening on UDP 48000…");
     }
     @Override public void surfaceCreated(SurfaceHolder h){ready=true;}
     @Override public void surfaceChanged(SurfaceHolder h,int f,int w,int height){}

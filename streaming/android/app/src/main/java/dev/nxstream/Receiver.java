@@ -36,7 +36,12 @@ final class Receiver implements AutoCloseable {
             byte[] buffer=new byte[1201];long lastVideo=System.nanoTime();
             while(alive.get()){
                 DatagramPacket p=new DatagramPacket(buffer,buffer.length);
-                try{s.receive(p);}catch(SocketTimeoutException e){if(System.nanoTime()-lastVideo>500_000_000L){needKey.set(true);requestKey();}continue;}
+                try{s.receive(p);}catch(SocketTimeoutException e){
+                    long idle=System.nanoTime()-lastVideo;
+                    if(idle>500_000_000L){needKey.set(true);requestKey();}
+                    if(idle>2_000_000_000L&&peer!=null){peer=null;seenVideo=false;seenAudio=false;video.clear();audio.clear();wire=new Wire(token);status.accept("Waiting for sender to reconnect…");}
+                    continue;
+                }
                 if(peer!=null&&!peer.equals(p.getSocketAddress()))continue;
                 Wire.Frame f=wire.accept(buffer,p.getLength(),System.nanoTime());if(f==null)continue;
                 peer=p.getSocketAddress();
