@@ -161,6 +161,8 @@ public struct EngineLaunchPlan: Equatable, Sendable {
         }
         apply(envFileText)
         apply(fm.contents(atPath: fw.appendingPathComponent("dm/env.txt").path).flatMap { String(data: $0, encoding: .utf8) })
+        for (key, value) in game.streamingEnvironment { env[key] = value }
+        fromFile.removeAll { game.streamingEnvironment[$0] != nil }
         env["DM_ENV_FILE_KEYS"] = fromFile.joined(separator: " ")
         if env["DM_PSO_BUNDLE"] == nil {
             if isDirectory(ownPSO) { env["DM_PSO_BUNDLE"] = ownPSO.path } else if isDirectory(fwPSO) { env["DM_PSO_BUNDLE"] = fwPSO.path }

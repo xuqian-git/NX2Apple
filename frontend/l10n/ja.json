@@ -2463,5 +2463,15 @@
   "xcodeChoice.reset": "システムの Xcode を使う",
   "xcodeChoice.system": "macOS で選択されている Xcode を使います。",
   "xcodeChoice.title": "NX2Apple 用の Xcode",
-  "xcodeChoice.unavailable": "選択した Xcode が入ったドライブを再接続するか、別のコピーを選んでください。"
+  "xcodeChoice.unavailable": "選択した Xcode が入ったドライブを再接続するか、別のコピーを選んでください。",
+  "ios.ui.streaming.0": "画面配信",
+  "ios.ui.streaming.1": "Android に配信",
+  "ios.ui.streaming.2": "受信端末を検索",
+  "ios.ui.streaming.3": "選択した受信端末",
+  "ios.ui.streaming.4": "出力解像度",
+  "ios.ui.streaming.5": "自動（受信端末に合わせる）",
+  "ios.ui.streaming.6": "iPhone のゲーム画面を非表示",
+  "ios.ui.streaming.7": "受信端末で NXStream を開いてから、ここで検索してください。",
+  "ios.ui.streaming.8": "受信端末が見つかりません。ローカルネットワークの許可と、テザリングで端末間通信が許可されているか確認してください。",
+  "ios.ui.streaming.9": "変更はゲームの再起動後に適用されます。アプリを前面に表示し、iPhone をロックしないでください。"
 }

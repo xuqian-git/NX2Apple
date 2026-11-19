@@ -31,7 +31,7 @@ public final class Wire {
         if(b.getLong()!=token || (f.type!=1 && f.type!=2) || total<=0 || total>MAX || count!=(total+CHUNK-1)/CHUNK || index>=count) return null;
         int len=Math.min(CHUNK,total-index*CHUNK);
         if(size!=HEADER+len) return null;
-        if(f.type==1 && (!((f.width==2880&&f.height==1620)||(f.width==2560&&f.height==1440)||(f.width==1920&&f.height==1080)))) return null;
+        if(f.type==1 && (f.width<320||f.height<240||f.width>4096||f.height>4096||(f.width&1)!=0||(f.height&1)!=0||(long)f.width*f.height>4096L*2160)) return null;
         if(f.type==2 && (f.rate!=48000 || !(f.channels==2||f.channels==6||f.channels==8||f.channels==12) || total%(f.channels*2)!=0 || total>23040)) return null;
         long key=((long)f.type<<32)|(f.seq&0xffffffffL);
         Pending p=pending.get(key);

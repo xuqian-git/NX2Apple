@@ -2464,5 +2464,15 @@
   "xcodeChoice.reset": "使用系统 Xcode",
   "xcodeChoice.system": "使用 macOS 中选定的 Xcode。",
   "xcodeChoice.title": "NX2Apple 使用的 Xcode",
-  "xcodeChoice.unavailable": "请重新连接存有已选 Xcode 的驱动器，或选择另一份 Xcode。"
+  "xcodeChoice.unavailable": "请重新连接存有已选 Xcode 的驱动器，或选择另一份 Xcode。",
+  "ios.ui.streaming.0": "投屏",
+  "ios.ui.streaming.1": "投屏到安卓设备",
+  "ios.ui.streaming.2": "扫描接收端",
+  "ios.ui.streaming.3": "已选接收端",
+  "ios.ui.streaming.4": "输出分辨率",
+  "ios.ui.streaming.5": "自动（匹配接收端）",
+  "ios.ui.streaming.6": "隐藏 iPhone 游戏画面",
+  "ios.ui.streaming.7": "先在车机或电视上打开 NXStream，再在这里扫描接收端。",
+  "ios.ui.streaming.8": "未找到接收端。请检查本地网络权限，并确认热点允许设备之间互通。",
+  "ios.ui.streaming.9": "修改在重新启动游戏后生效。请保持应用在前台，勿锁定 iPhone。"
 }

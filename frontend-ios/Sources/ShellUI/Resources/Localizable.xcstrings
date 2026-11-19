@@ -1793,6 +1793,70 @@
         }
       }
     },
+    "Automatic (match receiver)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatisch (an Empfänger anpassen)"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatic (match receiver)"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automática (según el receptor)"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatique (selon le récepteur)"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatica (adatta al ricevitore)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自動（受信端末に合わせる）"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "자동 (수신 기기에 맞춤)"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automática (conforme o receptor)"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatiskt (anpassa till mottagaren)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自动（匹配接收端）"
+          }
+        }
+      }
+    },
     "Back": {
       "localizations": {
         "de": {
@@ -2941,6 +3005,70 @@
           "stringUnit": {
             "state": "translated",
             "value": "已偏离测试值"
+          }
+        }
+      }
+    },
+    "Changes apply when you restart the game. Keep this app in the foreground and leave the iPhone unlocked.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Änderungen gelten nach dem Neustart des Spiels. Lass die App im Vordergrund und das iPhone entsperrt."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Changes apply when you restart the game. Keep this app in the foreground and leave the iPhone unlocked."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Los cambios se aplican al reiniciar el juego. Mantén la app en primer plano y el iPhone desbloqueado."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Les modifications prennent effet au redémarrage du jeu. Gardez l’app au premier plan et l’iPhone déverrouillé."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le modifiche si applicano al riavvio del gioco. Mantieni l’app in primo piano e iPhone sbloccato."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "変更はゲームの再起動後に適用されます。アプリを前面に表示し、iPhone をロックしないでください。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "게임을 다시 시작하면 변경 사항이 적용됩니다. 앱을 전면에 유지하고 iPhone을 잠그지 마세요."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "As alterações entram em vigor ao reiniciar o jogo. Mantenha o app em primeiro plano e o iPhone desbloqueado."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ändringarna gäller när du startar om spelet. Behåll appen i förgrunden och lämna iPhone olåst."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "修改在重新启动游戏后生效。请保持应用在前台，勿锁定 iPhone。"
           }
         }
       }
@@ -6593,6 +6721,70 @@
         }
       }
     },
+    "Find receivers": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Empfänger suchen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Find receivers"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Buscar receptores"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rechercher des récepteurs"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cerca ricevitori"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "受信端末を検索"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "수신 기기 검색"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Buscar receptores"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sök efter mottagare"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "扫描接收端"
+          }
+        }
+      }
+    },
     "Fit": {
       "localizations": {
         "de": {
@@ -8189,6 +8381,70 @@
           "stringUnit": {
             "state": "translated",
             "value": "掌机模式"
+          }
+        }
+      }
+    },
+    "Hide game picture on iPhone": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spielbild auf dem iPhone ausblenden"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hide game picture on iPhone"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ocultar el juego en el iPhone"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Masquer le jeu sur l’iPhone"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nascondi il gioco su iPhone"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iPhone のゲーム画面を非表示"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iPhone 게임 화면 숨기기"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ocultar o jogo no iPhone"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dölj spelbilden på iPhone"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "隐藏 iPhone 游戏画面"
           }
         }
       }
@@ -12289,6 +12545,70 @@
         }
       }
     },
+    "No receiver found. Check Local Network permission and that the hotspot allows devices to communicate.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kein Empfänger gefunden. Prüfe die Berechtigung für das lokale Netzwerk und ob der Hotspot die Kommunikation zwischen Geräten erlaubt."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No receiver found. Check Local Network permission and that the hotspot allows devices to communicate."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se encontró ningún receptor. Comprueba el permiso de red local y que el punto de acceso permita la comunicación entre dispositivos."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aucun récepteur trouvé. Vérifiez l’autorisation Réseau local et que le point d’accès permet aux appareils de communiquer."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nessun ricevitore trovato. Controlla il permesso Rete locale e che l’hotspot consenta la comunicazione tra dispositivi."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "受信端末が見つかりません。ローカルネットワークの許可と、テザリングで端末間通信が許可されているか確認してください。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "수신 기기를 찾지 못했습니다. 로컬 네트워크 권한과 핫스팟의 기기 간 통신 허용 여부를 확인하세요."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nenhum receptor encontrado. Verifique a permissão de rede local e se o ponto de acesso permite a comunicação entre dispositivos."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ingen mottagare hittades. Kontrollera behörigheten för lokalt nätverk och att internetdelningen tillåter kommunikation mellan enheter."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未找到接收端。请检查本地网络权限，并确认热点允许设备之间互通。"
+          }
+        }
+      }
+    },
     "No room there": {
       "localizations": {
         "de": {
@@ -12801,6 +13121,70 @@
         }
       }
     },
+    "Open NXStream on the receiver, then find receivers here.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Öffne NXStream auf dem Empfänger und suche ihn dann hier."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open NXStream on the receiver, then find receivers here."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abre NXStream en el receptor y búscalo aquí."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ouvrez NXStream sur le récepteur, puis recherchez-le ici."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apri NXStream sul ricevitore, poi cercalo qui."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "受信端末で NXStream を開いてから、ここで検索してください。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "수신 기기에서 NXStream을 연 다음 여기에서 검색하세요."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abra o NXStream no receptor e procure-o aqui."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Öppna NXStream på mottagaren och sök sedan efter den här."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "先在车机或电视上打开 NXStream，再在这里扫描接收端。"
+          }
+        }
+      }
+    },
     "Opens the button mapping": {
       "localizations": {
         "de": {
@@ -12989,6 +13373,70 @@
           "stringUnit": {
             "state": "translated",
             "value": "打开选项列表"
+          }
+        }
+      }
+    },
+    "Output resolution": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ausgabeauflösung"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Output resolution"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Resolución de salida"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Résolution de sortie"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Risoluzione di uscita"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "出力解像度"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "출력 해상도"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Resolução de saída"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Utdataupplösning"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "输出分辨率"
           }
         }
       }
@@ -16641,6 +17089,70 @@
         }
       }
     },
+    "Selected receiver": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gewählter Empfänger"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Selected receiver"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Receptor seleccionado"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Récepteur sélectionné"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ricevitore selezionato"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "選択した受信端末"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "선택한 수신 기기"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Receptor selecionado"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vald mottagare"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已选接收端"
+          }
+        }
+      }
+    },
     "Sends in games": {
       "localizations": {
         "de": {
@@ -17469,6 +17981,134 @@
           "stringUnit": {
             "state": "translated",
             "value": "摇杆位置预设"
+          }
+        }
+      }
+    },
+    "Stream to Android": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "An Android übertragen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stream to Android"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Transmitir a Android"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diffuser vers Android"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Trasmetti ad Android"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Android に配信"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Android로 전송"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Transmitir para Android"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Strömma till Android"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "投屏到安卓设备"
+          }
+        }
+      }
+    },
+    "Streaming": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bildübertragung"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Streaming"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Transmisión"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diffusion"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Trasmissione"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "画面配信"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "화면 전송"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Transmissão"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bildöverföring"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "投屏"
           }
         }
       }

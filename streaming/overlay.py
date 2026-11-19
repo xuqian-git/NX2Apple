@@ -73,7 +73,7 @@ def apply(tree):
     replace(audio,'    if (released) {\n        if (a->event)', '    if (nx_stream_audio) nx_stream_audio(a, s16, (unsigned)(ns / a->ch), a->ch);\n    if (released) {\n        if (a->event)')
     replace(audio,'        if (a->mute) memset(bl->mBuffers[0].mData, 0, bl->mBuffers[0].mDataByteSize);','        if (a->mute || (nx_stream_black && nx_stream_black())) memset(bl->mBuffers[0].mData, 0, bl->mBuffers[0].mDataByteSize);')
     ios='dm/ios/Sources/front_ios.m'
-    replace(ios,'    self.fill = dm_picture_fill(getenv("DM_PICTURE_FIT"));','    if (getenv("DM_STREAM_HOST")) setenv("DM_SCREEN_ASPECT", "0", 1); // Receiver modes are all 16:9\n    self.fill = dm_picture_fill(getenv("DM_PICTURE_FIT"));')
+    replace(ios,'    self.fill = dm_picture_fill(getenv("DM_PICTURE_FIT"));','    if (getenv("DM_STREAM_HOST") && *getenv("DM_STREAM_HOST")) setenv("DM_SCREEN_ASPECT", "0", 1); // Preserve the game picture aspect inside the receiver output\n    self.fill = dm_picture_fill(getenv("DM_PICTURE_FIT"));')
     replace(ios,'    [self.view addSubview:self.game];','    [self.view addSubview:self.game];\n    if (getenv("DM_STREAM_HOST")) self.game.backgroundColor = UIColor.blackColor;')
     # Application privacy strings belong in each app template, including the shared shell.
     for p in (tree/'dm').rglob('*.yml'):

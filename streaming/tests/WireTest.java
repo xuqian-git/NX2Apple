@@ -17,6 +17,9 @@ public class WireTest {
   // Conflicting metadata must not poison an existing frame or splice two frames.
   byte[] first=packet(5,0,2000,TOKEN),second=packet(5,1,2000,TOKEN);require(add(w,first,90_000_000)==null);ByteBuffer.wrap(second).putShort(20,(short)2560).putShort(22,(short)1440);require(add(w,second,90_000_001)==null);
   require(add(w,packet(5,1,2000,TOKEN),90_000_002)!=null);
+  byte[] custom=packet(6,0,100,TOKEN);ByteBuffer.wrap(custom).putShort(20,(short)2560).putShort(22,(short)1600);require(add(w,custom,100_000_000)!=null);
+  ByteBuffer.wrap(custom).putShort(20,(short)4096).putShort(22,(short)4096);require(add(w,custom,100_000_001)==null);
+  ByteBuffer.wrap(custom).putShort(20,(short)1921).putShort(22,(short)1080);require(add(w,custom,100_000_002)==null);
   System.out.println("Wire tests passed: reorder, duplicate, token, bounds, expiry, metadata, 10000 malformed packets");
  }
 }

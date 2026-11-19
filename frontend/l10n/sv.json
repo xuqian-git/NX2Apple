@@ -2464,5 +2464,15 @@
   "xcodeChoice.reset": "Använd system-Xcode",
   "xcodeChoice.system": "Använd den Xcode som är vald i macOS.",
   "xcodeChoice.title": "Xcode för NX2Apple",
-  "xcodeChoice.unavailable": "Anslut disken med den valda Xcode igen eller välj en annan kopia."
+  "xcodeChoice.unavailable": "Anslut disken med den valda Xcode igen eller välj en annan kopia.",
+  "ios.ui.streaming.0": "Bildöverföring",
+  "ios.ui.streaming.1": "Strömma till Android",
+  "ios.ui.streaming.2": "Sök efter mottagare",
+  "ios.ui.streaming.3": "Vald mottagare",
+  "ios.ui.streaming.4": "Utdataupplösning",
+  "ios.ui.streaming.5": "Automatiskt (anpassa till mottagaren)",
+  "ios.ui.streaming.6": "Dölj spelbilden på iPhone",
+  "ios.ui.streaming.7": "Öppna NXStream på mottagaren och sök sedan efter den här.",
+  "ios.ui.streaming.8": "Ingen mottagare hittades. Kontrollera behörigheten för lokalt nätverk och att internetdelningen tillåter kommunikation mellan enheter.",
+  "ios.ui.streaming.9": "Ändringarna gäller när du startar om spelet. Behåll appen i förgrunden och lämna iPhone olåst."
 }

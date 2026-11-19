@@ -24,6 +24,8 @@ public struct LaunchableGame: Equatable, Sendable {
     public var cloudSavesURL: URL?
     /// Shell-level fallback defaults applied after per-game `env.txt` and before the shared `env.txt`.
     public var shellEnvironment: [String: String] = [:]
+    /// Explicit app streaming choices override legacy env files, including when turned off.
+    public var streamingEnvironment: [String: String] = [:]
     /// Keys in `environment` that came only from shell defaults because the game made no choice of its own.
     var shellFallbackKeys: Set<String> = []
     /// True when the engine mounts shaders directly from the `DMMSLTR1` trailer in `romfsURL`.

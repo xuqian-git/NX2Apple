@@ -69,6 +69,7 @@ struct ShellSettingsView: View {
     @Environment(\.shellFocus) private var focus
     /// Counts the changes in the defaults, so the rows read the store again.
     @State private var revision = 0
+    @State private var streamingPresented = false
 
     var body: some View {
         let _ = revision
@@ -82,6 +83,13 @@ struct ShellSettingsView: View {
                                 .shellTarget("shs.close", action: onClose)
                         }
                     }.id("shs.top")
+                }
+
+                Section {
+                    Button { streamingPresented = true } label: {
+                        Label(ShellStrings.text("Streaming"), systemImage: "tv")
+                    }
+                    .accessibilityIdentifier("stream.open")
                 }
 
                 Section {
@@ -187,6 +195,17 @@ struct ShellSettingsView: View {
                 withAnimation(reduceMotion ? nil : .easeOut(duration: 0.18)) {
                     proxy.scrollTo(id == "shs.close" ? "shs.top" : id, anchor: id == "shs.close" ? .top : .center)
                 }
+            }
+        }
+        .sheet(isPresented: $streamingPresented) {
+            NavigationStack {
+                Form { StreamingSettingsSection(store: store) }
+                    .navigationTitle(ShellStrings.text("Streaming"))
+                    .toolbar {
+                        ToolbarItem(placement: .confirmationAction) {
+                            Button(ShellStrings.text("Done")) { streamingPresented = false }
+                        }
+                    }
             }
         }
         .tint(ShellPalette.cream)

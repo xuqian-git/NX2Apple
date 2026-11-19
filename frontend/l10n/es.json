@@ -2464,5 +2464,15 @@
   "xcodeChoice.reset": "Usar el Xcode del sistema",
   "xcodeChoice.system": "Usar el Xcode elegido en macOS.",
   "xcodeChoice.title": "Xcode para NX2Apple",
-  "xcodeChoice.unavailable": "Vuelve a conectar el disco que contiene el Xcode elegido o elige otra copia."
+  "xcodeChoice.unavailable": "Vuelve a conectar el disco que contiene el Xcode elegido o elige otra copia.",
+  "ios.ui.streaming.0": "Transmisión",
+  "ios.ui.streaming.1": "Transmitir a Android",
+  "ios.ui.streaming.2": "Buscar receptores",
+  "ios.ui.streaming.3": "Receptor seleccionado",
+  "ios.ui.streaming.4": "Resolución de salida",
+  "ios.ui.streaming.5": "Automática (según el receptor)",
+  "ios.ui.streaming.6": "Ocultar el juego en el iPhone",
+  "ios.ui.streaming.7": "Abre NXStream en el receptor y búscalo aquí.",
+  "ios.ui.streaming.8": "No se encontró ningún receptor. Comprueba el permiso de red local y que el punto de acceso permita la comunicación entre dispositivos.",
+  "ios.ui.streaming.9": "Los cambios se aplican al reiniciar el juego. Mantén la app en primer plano y el iPhone desbloqueado."
 }
