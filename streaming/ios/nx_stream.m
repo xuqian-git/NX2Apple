@@ -13,7 +13,7 @@
 // A bounded, LAN-only prototype. Token filters unrelated sessions, but does not encrypt traffic.
 static int sockfd=-1, width=1920, height=1080;
 static uint64_t session_token;
-static _Atomic int running, busy, force_key=1;
+static _Atomic int running, busy, failed, force_key=1;
 static uint32_t video_seq, audio_seq;
 static int attempted;
 static VTCompressionSessionRef encoder;
@@ -34,7 +34,7 @@ static void be16(uint8_t *p,uint16_t v){p[0]=v>>8;p[1]=v;}
 static void be32(uint8_t *p,uint32_t v){be16(p,v>>16);be16(p+2,v);}
 static void be64(uint8_t *p,uint64_t v){be32(p,v>>32);be32(p+4,v);}
 static uint64_t uptime_us(void){return clock_gettime_nsec_np(CLOCK_UPTIME_RAW)/1000;}
-int nx_stream_enabled(void){const char *s=getenv("DM_STREAM_HOST");return s&&*s;}
+int nx_stream_enabled(void){const char *s=getenv("DM_STREAM_HOST");return s&&*s&&!atomic_load(&failed);}
 int nx_stream_black(void){const char *s=getenv("DM_STREAM_BLACK");return nx_stream_enabled()&&(!s||atoi(s)!=0);}
 static void send_frame(const uint8_t *data,size_t len,int type,int key,uint64_t pts,unsigned channels){
     if(!atomic_load(&running)||!len)return;
@@ -138,7 +138,7 @@ static int initialize(id<MTLDevice> device){
 }
 void nx_stream_capture(id<MTLTexture> source,id<MTLCommandBuffer> cb,const int crop[4]){
     if(!nx_stream_enabled())return;
-    if(!atomic_load(&running)){if(attempted)return;attempted=1;if(!initialize(source.device)){fprintf(stderr,"[NXStream] initialization failed; verify host/token/size and hardware encoding\n");return;}}
+    if(!atomic_load(&running)){if(attempted)return;attempted=1;if(!initialize(source.device)){atomic_store(&failed,1);fprintf(stderr,"[NXStream] initialization failed; verify host/token/size and hardware encoding\n");return;}}
     if(atomic_exchange(&busy,1))return;
     CVPixelBufferRef pixel=NULL;CVMetalTextureRef texture=NULL;
     if(CVPixelBufferPoolCreatePixelBuffer(NULL,pool,&pixel)!=kCVReturnSuccess){atomic_store(&busy,0);return;}
@@ -170,5 +170,5 @@ void nx_stream_stop(void){
     if(video_queue)dispatch_sync(video_queue,^{});
     if(sockfd>=0){close(sockfd);sockfd=-1;}
     if(pool){CFRelease(pool);pool=NULL;}if(cache){CFRelease(cache);cache=NULL;}
-    attempted=0;pipeline=nil;video_queue=nil;atomic_store(&busy,0);audio_source=NULL;audio_read=audio_write=0;
+    attempted=0;atomic_store(&failed,0);pipeline=nil;video_queue=nil;atomic_store(&busy,0);audio_source=NULL;audio_read=audio_write=0;
 }
