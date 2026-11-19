@@ -27,6 +27,7 @@ jobs:
       ref: ${{ steps.prepare.outputs.ref }}
       pr: ${{ steps.prepare.outputs.pr }}
       head: ${{ steps.prepare.outputs.head }}
+      base: ${{ steps.prepare.outputs.base }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -44,6 +45,7 @@ jobs:
           git config user.name 'nxstream-sync'
           git config user.email 'actions@users.noreply.github.com'
           git fetch origin main
+          echo "base=$(git rev-parse origin/main)" >> "$GITHUB_OUTPUT"
           git checkout -B "sync/nxstream-$GITHUB_RUN_ID" origin/main
           git fetch https://github.com/LNPANDY/NX2Apple.git main
           if git merge-base --is-ancestor FETCH_HEAD HEAD; then
@@ -96,7 +98,7 @@ jobs:
           mkdir -p dist
           cp streaming/android/app/build/outputs/apk/release/app-release.apk dist/NXStream-Android.apk
           cp streaming/README.zh-CN.md dist/
-          sha256sum dist/NXStream-Android.apk > dist/SHA256SUMS-android.txt
+          (cd dist && sha256sum NXStream-Android.apk > SHA256SUMS-android.txt)
       - uses: actions/upload-artifact@v4
         with:
           name: NXStream-Android
@@ -167,7 +169,10 @@ jobs:
         env:
           PR: ${{ needs.prepare.outputs.pr }}
           HEAD_SHA: ${{ needs.prepare.outputs.head }}
-        run: gh pr merge "$PR" --repo "$GH_REPO" --merge --match-head-commit "$HEAD_SHA"
+          BASE_SHA: ${{ needs.prepare.outputs.base }}
+        run: |
+          test "$(gh api "repos/$GH_REPO/git/ref/heads/main" --jq .object.sha)" = "$BASE_SHA" || { echo 'main changed during validation; rerun synchronization'; exit 1; }
+          gh pr merge "$PR" --repo "$GH_REPO" --merge --match-head-commit "$HEAD_SHA"
       - uses: actions/download-artifact@v4
         with:
           path: dist

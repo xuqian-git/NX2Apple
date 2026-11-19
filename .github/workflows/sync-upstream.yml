@@ -44,6 +44,8 @@ permissions:
 
 jobs:
   sync:
+    # NXStream follows the NX2Apple fork through nxstream.yml, not seedds directly.
+    if: github.repository == 'LNPANDY/NX2Apple'
     runs-on: macos-latest   # the host build needs clang + macOS headers
     outputs:
       bump: ${{ steps.bump.outputs.changed }}   # yes (a PR was opened), no (already at upstream), conflict

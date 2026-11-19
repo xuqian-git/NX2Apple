@@ -18,4 +18,4 @@ trap 'rm -f tools/.nxstream-try-local' EXIT
 bash tools/.nxstream-try-local --no-open --dir "$OUT"
 cp streaming/README.zh-CN.md "$OUT/README.zh-CN.md"
 ditto -c -k --sequesterRsrc --keepParent "$OUT/NX2Apple.app" "$OUT/NX2Apple-macOS-arm64.zip"
-shasum -a 256 "$OUT/NX2Apple-macOS-arm64.zip" > "$OUT/SHA256SUMS-mac.txt"
+(cd "$OUT" && shasum -a 256 NX2Apple-macOS-arm64.zip > SHA256SUMS-mac.txt)
