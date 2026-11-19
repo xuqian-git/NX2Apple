@@ -15,43 +15,63 @@ final class Receiver implements AutoCloseable {
     private final boolean stereo;
     private final Consumer<String> status;
     private final Consumer<int[]> dimensions;
+    private final Consumer<String> overlay;
+    private final Stats stats=new Stats();
     private final ArrayBlockingQueue<Wire.Frame> video=new ArrayBlockingQueue<>(3),audio=new ArrayBlockingQueue<>(12);
     private final AtomicBoolean alive=new AtomicBoolean(true),needKey=new AtomicBoolean(true);
-    private final Thread network,decoder,sound;
+    private final Thread network,decoder,sound,ticker;
     private volatile DatagramSocket socket;
     private volatile SocketAddress peer;
     private long lastRequest;
-    Receiver(Surface surface,long token,boolean stereo,Consumer<String> status,Consumer<int[]> dimensions) {
-        this.surface=surface;this.token=token;this.stereo=stereo;this.status=status;this.dimensions=dimensions;
-        network=new Thread(this::receive,"nx-receive");decoder=new Thread(this::decode,"nx-decode");sound=new Thread(this::play,"nx-audio");
-        network.start();decoder.start();sound.start();
+    Receiver(Surface surface,long token,boolean stereo,Consumer<String> status,Consumer<int[]> dimensions,Consumer<String> overlay) {
+        this.surface=surface;this.token=token;this.stereo=stereo;this.status=status;this.dimensions=dimensions;this.overlay=overlay;
+        network=new Thread(this::receive,"nx-receive");decoder=new Thread(this::decode,"nx-decode");sound=new Thread(this::play,"nx-audio");ticker=new Thread(this::report,"nx-stats");
+        network.start();decoder.start();sound.start();ticker.start();
     }
-    private void requestKey(){
+    private void report(){
+        long last=System.nanoTime();
+        while(alive.get()){
+            try{Thread.sleep(1000);}catch(InterruptedException e){return;}
+            long now=System.nanoTime();
+            if(peer==null){last=now;continue;}
+            overlay.accept(stats.tick((now-last)/1e9));last=now;
+        }
+    }
+    private void requestKey(String reason){
         long now=System.nanoTime();if(now-lastRequest<250_000_000L||peer==null)return;lastRequest=now;
-        try{byte[] p=Wire.keyRequest(token);socket.send(new DatagramPacket(p,p.length,peer));}catch(Exception ignored){}
+        try{byte[] p=Wire.keyRequest(token);socket.send(new DatagramPacket(p,p.length,peer));stats.keyRequest(reason);}catch(Exception ignored){}
     }
     private void receive(){
         Wire wire=new Wire(token);int previousVideo=0,previousAudio=0;boolean seenVideo=false,seenAudio=false;
         try(DatagramSocket s=new DatagramSocket(48000)){
             socket=s;s.setReceiveBufferSize(2*1024*1024);s.setSoTimeout(100);
-            byte[] buffer=new byte[1201];long lastVideo=System.nanoTime();
+            byte[] buffer=new byte[1201];long lastVideo=System.nanoTime(),lastPing=0;int lostVideo=0;
             while(alive.get()){
+                long tick=System.nanoTime();
+                // Clock probe for end-to-end latency. Older senders ignore it.
+                if(peer!=null&&tick-lastPing>=500_000_000L){lastPing=tick;try{byte[] q=Wire.ping(token,tick);s.send(new DatagramPacket(q,q.length,peer));}catch(Exception ignored){}}
                 DatagramPacket p=new DatagramPacket(buffer,buffer.length);
                 try{s.receive(p);}catch(SocketTimeoutException e){
                     long idle=System.nanoTime()-lastVideo;
-                    if(idle>500_000_000L){needKey.set(true);requestKey();}
-                    if(idle>2_000_000_000L&&peer!=null){peer=null;seenVideo=false;seenAudio=false;video.clear();audio.clear();wire=new Wire(token);status.accept("Waiting for sender to reconnect…");}
+                    if(idle>500_000_000L){needKey.set(true);requestKey("idle");}
+                    if(idle>2_000_000_000L&&peer!=null){peer=null;seenVideo=false;seenAudio=false;video.clear();audio.clear();wire=new Wire(token);lostVideo=0;stats.reset();status.accept("Waiting for sender to reconnect…");}
                     continue;
                 }
                 if(peer!=null&&!peer.equals(p.getSocketAddress()))continue;
-                Wire.Frame f=wire.accept(buffer,p.getLength(),System.nanoTime());if(f==null)continue;
+                long now=System.nanoTime();
+                if(peer!=null&&p.getLength()==Wire.PONG_SIZE){Wire.Pong o=Wire.pong(buffer,p.getLength(),token);if(o!=null){stats.probe(o,now);continue;}}
+                Wire.Frame f=wire.accept(buffer,p.getLength(),now);
+                if(wire.droppedVideo!=lostVideo){lostVideo=wire.droppedVideo;stats.expired(wire.lostSeq,wire.lostGot,wire.lostCount,now);}
+                if(peer!=null||f!=null)stats.packet(p.getLength());
+                if(f==null)continue;
                 peer=p.getSocketAddress();
                 if(f.type==1){
                     if(seenVideo && Integer.compareUnsigned(f.seq,previousVideo)<=0)continue;
-                    if(seenVideo && f.seq!=previousVideo+1)needKey.set(true);
-                    previousVideo=f.seq;seenVideo=true;lastVideo=System.nanoTime();
-                    if(needKey.get()){if(!f.key()){requestKey();continue;}video.clear();needKey.set(false);}
-                    if(!video.offer(f)){video.clear();needKey.set(true);requestKey();}
+                    if(seenVideo && f.seq!=previousVideo+1){needKey.set(true);stats.gap(previousVideo,f.seq,now);}
+                    previousVideo=f.seq;seenVideo=true;lastVideo=now;
+                    stats.frame(f,now);
+                    if(needKey.get()){if(!f.key()){stats.awaitingKey();requestKey("await");continue;}video.clear();needKey.set(false);}
+                    if(!video.offer(f)){video.clear();needKey.set(true);stats.overflow(now);requestKey("overflow");}
                 }else{
                     if(seenAudio&&Integer.compareUnsigned(f.seq,previousAudio)<=0)continue;
                     previousAudio=f.seq;seenAudio=true;
@@ -84,16 +104,16 @@ final class Receiver implements AutoCloseable {
                         codec.configure(format,surface,null,0);codec.start();recovery=false;
                         status.accept(width+"×"+height+" · "+name+" · low latency "+low);
                     }
-                    if(recovery){if(!f.key())continue;codec.flush();recovery=false;}
+                    if(recovery){if(!f.key()){stats.awaitingKey();continue;}codec.flush();recovery=false;}
                     int index=codec.dequeueInputBuffer(0);
-                    if(index<0){needKey.set(true);recovery=true;video.clear();}
+                    if(index<0){needKey.set(true);recovery=true;video.clear();stats.decoderBusy(System.nanoTime());}
                     else{
                         ByteBuffer b=codec.getInputBuffer(index);
                         if(b==null||b.capacity()<f.data.length)throw new IllegalStateException("Decoder input buffer too small");
-                        b.clear();b.put(f.data);codec.queueInputBuffer(index,0,f.data.length,f.pts,0);
+                        b.clear();b.put(f.data);codec.queueInputBuffer(index,0,f.data.length,f.pts,0);stats.queued(f.pts,System.nanoTime());
                     }
                 }
-                if(codec!=null){int index;while((index=codec.dequeueOutputBuffer(info,0))>=0){codec.releaseOutputBuffer(index,true);shown++;}}
+                if(codec!=null){int index;while((index=codec.dequeueOutputBuffer(info,0))>=0){codec.releaseOutputBuffer(index,true);stats.shown(info.presentationTimeUs,System.nanoTime());shown++;}}
             }
         }catch(Exception e){if(alive.get())status.accept("Video: "+e.getMessage());}
         finally{if(codec!=null){try{codec.stop();}catch(Exception ignored){}codec.release();}}
@@ -148,5 +168,5 @@ final class Receiver implements AutoCloseable {
         }catch(Exception e){if(alive.get())status.accept("Audio: "+e.getMessage());}
         finally{if(track!=null){try{track.pause();track.flush();}catch(Exception ignored){}track.release();}}
     }
-    @Override public void close(){alive.set(false);DatagramSocket s=socket;if(s!=null)s.close();network.interrupt();decoder.interrupt();sound.interrupt();try{network.join(500);decoder.join(500);sound.join(500);}catch(InterruptedException e){Thread.currentThread().interrupt();}}
+    @Override public void close(){alive.set(false);DatagramSocket s=socket;if(s!=null)s.close();network.interrupt();decoder.interrupt();sound.interrupt();ticker.interrupt();try{network.join(500);decoder.join(500);sound.join(500);ticker.join(500);}catch(InterruptedException e){Thread.currentThread().interrupt();}}
 }

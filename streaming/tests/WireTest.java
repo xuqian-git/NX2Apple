@@ -20,6 +20,12 @@ public class WireTest {
   byte[] custom=packet(6,0,100,TOKEN);ByteBuffer.wrap(custom).putShort(20,(short)2560).putShort(22,(short)1600);require(add(w,custom,100_000_000)!=null);
   ByteBuffer.wrap(custom).putShort(20,(short)4096).putShort(22,(short)4096);require(add(w,custom,100_000_001)==null);
   ByteBuffer.wrap(custom).putShort(20,(short)1921).putShort(22,(short)1080);require(add(w,custom,100_000_002)==null);
-  System.out.println("Wire tests passed: reorder, duplicate, token, bounds, expiry, metadata, 10000 malformed packets");
+  require(w.droppedVideo==w.dropped&&w.lostSeq==3&&w.lostGot==1&&w.lostCount==2);
+  // Clock probe round trip and strict pong parsing.
+  byte[] ping=Wire.ping(TOKEN,0x0102030405060708L);require(ping.length==Wire.PING_SIZE&&ping[0]=='N'&&ping[3]=='G'&&ByteBuffer.wrap(ping).getLong(16)==0x0102030405060708L);
+  ByteBuffer pong=ByteBuffer.allocate(Wire.PONG_SIZE).putInt(0x4e58504f).putInt(1).putLong(TOKEN).putLong(0x0102030405060708L).putLong(123456789L).putInt(1).putInt(2).putInt(3).putInt(4).putInt(55).putInt(-1);
+  Wire.Pong o=Wire.pong(pong.array(),Wire.PONG_SIZE,TOKEN);require(o!=null&&o.echo==0x0102030405060708L&&o.senderMicros==123456789L&&o.sendErrors==1&&o.captured==2&&o.skipped==3&&o.encodeMaxMicros==4&&o.lastErrno==55&&o.packetsSent==-1);
+  require(Wire.pong(pong.array(),Wire.PONG_SIZE,TOKEN+1)==null&&Wire.pong(pong.array(),Wire.PONG_SIZE-1,TOKEN)==null);
+  System.out.println("Wire tests passed: reorder, duplicate, token, bounds, expiry, metadata, 10000 malformed packets, clock probe");
  }
 }

@@ -9,12 +9,15 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <pthread.h>
+#include <errno.h>
 
 // A bounded, LAN-only prototype. The compatibility field is not authentication.
 static int sockfd=-1, width=1920, height=1080;
 static uint64_t session_token;
 static _Atomic int running, busy, failed, force_key=1;
 static uint32_t video_seq, audio_seq;
+// Diagnostics reported to the receiver in NXPO replies. Cumulative counters wrap; encode_max resets per reply.
+static _Atomic uint32_t stat_send_errors, stat_captured, stat_skipped, stat_encode_max, stat_errno, stat_packets;
 static int attempted;
 static VTCompressionSessionRef encoder;
 static CVPixelBufferPoolRef pool;
@@ -47,7 +50,8 @@ static void send_frame(const uint8_t *data,size_t len,int type,int key,uint64_t 
         be16(packet+20,width);be16(packet+22,height);be16(packet+24,channels);be32(packet+28,48000);
         be16(packet+32,i);be16(packet+34,count);be32(packet+36,(uint32_t)len);be64(packet+40,session_token);
         memcpy(packet+48,data+i*1152,n);
-        if(send(sockfd,packet,n+48,0)!=(ssize_t)(n+48)){if(type==1)atomic_store(&force_key,1);break;}
+        if(send(sockfd,packet,n+48,0)!=(ssize_t)(n+48)){atomic_store(&stat_errno,errno);atomic_fetch_add(&stat_send_errors,1);if(type==1)atomic_store(&force_key,1);break;}
+        atomic_fetch_add(&stat_packets,1);
         // Bound instantaneous bursts without adding a frame queue.
         if(type==1 && i%16==15)usleep(100);
     }
@@ -61,8 +65,15 @@ static void *audio_main(void *arg){
         os_unfair_lock_unlock(&audio_lock);
         if(have){if((int64_t)(uptime_us()-a.pts)<60000)send_frame((uint8_t *)a.pcm,a.frames*a.channels*2,2,0,a.pts,a.channels);}
         else usleep(1000);
-        uint8_t p[32];ssize_t n=recv(sockfd,p,sizeof p,0);
-        if(n==16&&!memcmp(p,"NXKF\0\0\0\1",8)) {uint8_t expected[8];be64(expected,session_token);if(!memcmp(expected,p+8,8))atomic_store(&force_key,1);}
+        uint8_t p[64],expected[8];ssize_t n=recv(sockfd,p,sizeof p,0);be64(expected,session_token);
+        if(n==16&&!memcmp(p,"NXKF\0\0\0\1",8)&&!memcmp(expected,p+8,8))atomic_store(&force_key,1);
+        // Clock probe: echo the receiver time with this clock (the video timestamp clock) and sender counters.
+        if(n==24&&!memcmp(p,"NXPG\0\0\0\1",8)&&!memcmp(expected,p+8,8)){
+            uint8_t r[56];memcpy(r,"NXPO\0\0\0\1",8);memcpy(r+8,expected,8);memcpy(r+16,p+16,8);be64(r+24,uptime_us());
+            be32(r+32,atomic_load(&stat_send_errors));be32(r+36,atomic_load(&stat_captured));be32(r+40,atomic_load(&stat_skipped));
+            be32(r+44,atomic_exchange(&stat_encode_max,0));be32(r+48,atomic_load(&stat_errno));be32(r+52,atomic_load(&stat_packets));
+            send(sockfd,r,sizeof r,0);
+        }
     }
     return NULL;
 }
@@ -84,6 +95,9 @@ void nx_stream_audio(const void *source,const int16_t *pcm,unsigned frames,unsig
 static void encoded(void *ctx,void *ref,OSStatus status,VTEncodeInfoFlags flags,CMSampleBufferRef sample){
     (void)ctx;(void)ref;(void)flags;
     if(status||!sample){atomic_store(&busy,0);atomic_store(&force_key,1);return;}
+    uint64_t pts=(uint64_t)(CMTimeGetSeconds(CMSampleBufferGetPresentationTimeStamp(sample))*1000000),now=uptime_us();
+    uint32_t took=now>pts?(uint32_t)MIN(now-pts,(uint64_t)UINT32_MAX):0,seen=atomic_load(&stat_encode_max);
+    while(took>seen&&!atomic_compare_exchange_weak(&stat_encode_max,&seen,took)){}
     CFRetain(sample);
     dispatch_async(video_queue,^{
         @autoreleasepool {
@@ -151,7 +165,7 @@ static int initialize(id<MTLDevice> device){
 void nx_stream_capture(id<MTLTexture> source,id<MTLCommandBuffer> cb,const int crop[4],int flip,double aspect){
     if(!nx_stream_enabled())return;
     if(!atomic_load(&running)){if(attempted)return;attempted=1;if(!initialize(source.device)){atomic_store(&failed,1);fprintf(stderr,"[NXStream] initialization failed; verify host/token/size and hardware encoding\n");return;}}
-    if(atomic_exchange(&busy,1))return;
+    if(atomic_exchange(&busy,1)){atomic_fetch_add(&stat_skipped,1);return;}
     CVPixelBufferRef pixel=NULL;CVMetalTextureRef texture=NULL;
     if(CVPixelBufferPoolCreatePixelBuffer(NULL,pool,&pixel)!=kCVReturnSuccess){atomic_store(&busy,0);return;}
     CVBufferSetAttachment(pixel,kCVImageBufferColorPrimariesKey,kCVImageBufferColorPrimaries_ITU_R_709_2,kCVAttachmentMode_ShouldPropagate);
@@ -175,7 +189,7 @@ void nx_stream_capture(id<MTLTexture> source,id<MTLCommandBuffer> cb,const int c
         if(done.status==MTLCommandBufferStatusCompleted && atomic_load(&running)){
             NSDictionary *options=atomic_exchange(&force_key,0)?@{(__bridge NSString *)kVTEncodeFrameOptionKey_ForceKeyFrame:@YES}:nil;
             OSStatus st=VTCompressionSessionEncodeFrame(encoder,pixel,CMTimeMake(pts,1000000),CMTimeMake(1,60),(__bridge CFDictionaryRef)options,NULL,NULL);
-            if(st){atomic_store(&busy,0);atomic_store(&force_key,1);}
+            if(st){atomic_store(&busy,0);atomic_store(&force_key,1);}else atomic_fetch_add(&stat_captured,1);
         }else atomic_store(&busy,0);
         CFRelease(texture);CFRelease(pixel);
     }];
