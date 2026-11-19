@@ -20,7 +20,9 @@ import Darwin
     func scan() {
         stop(); receivers = []; endpoints = []; searching = true
         let current = generation
-        let browser = NWBrowser(for: .bonjour(type: "_nxstream._udp", domain: nil), using: .udp)
+        let parameters = NWParameters.udp
+        (parameters.defaultProtocolStack.internetProtocol as? NWProtocolIP.Options)?.version = .v4
+        let browser = NWBrowser(for: .bonjour(type: "_nxstream._udp", domain: nil), using: parameters)
         self.browser = browser
         browser.browseResultsChangedHandler = { [weak self] results, _ in
             Task { @MainActor in
@@ -47,7 +49,9 @@ import Darwin
     }
     private func probe(_ endpoint: NWEndpoint, generation current: UUID) {
         guard endpoints.insert(String(describing: endpoint)).inserted else { return }
-        let connection = NWConnection(to: endpoint, using: .udp)
+        let parameters = NWParameters.udp
+        (parameters.defaultProtocolStack.internetProtocol as? NWProtocolIP.Options)?.version = .v4
+        let connection = NWConnection(to: endpoint, using: parameters)
         connections.append(connection)
         connection.stateUpdateHandler = { [weak self] state in
             guard case .ready = state else { return }
