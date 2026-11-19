@@ -30,8 +30,19 @@ def apply(tree):
             if (next > now && next - now < 100000000) { struct timespec ts = {0, (long)(next - now)}; nanosleep(&ts, NULL); }
             next = clock_gettime_nsec_np(CLOCK_UPTIME_RAW) + interval;
         }
+        // Metal 4 game work and the encoder's Metal command buffer use different queues.
+        // Bridge both directions so neither sampling nor the next reuse can race the other.
+        static id<MTLSharedEvent> stream_event;
+        static uint64_t stream_fence;
+        if (!stream_event) stream_event = [g_dev newSharedEvent];
+        if (!stream_event) return 0;
+        uint64_t ready = ++stream_fence, copied = ++stream_fence;
+        pthread_mutex_lock(&g_res_commit_mu);
+        [g_q4 signalEvent:stream_event value:ready];
         id<MTLCommandBuffer> stream = q_cb();
+        [stream encodeWaitForEvent:stream_event value:ready];
         nx_stream_capture(src, stream, crop);
+        [stream encodeSignalEvent:stream_event value:copied];
         if (nx_stream_black()) {
             pthread_mutex_lock(&g_pq_mu); g_pq_inflight++; pthread_mutex_unlock(&g_pq_mu);
             [stream addCompletedHandler:^(id<MTLCommandBuffer> done) {
@@ -46,9 +57,13 @@ def apply(tree):
                 if (retire) ext_retire(retire);
             }];
             [stream commit];
+            [g_q4 waitForEvent:stream_event value:copied];
+            pthread_mutex_unlock(&g_res_commit_mu);
             return 1;
         }
         [stream commit];
+        [g_q4 waitForEvent:stream_event value:copied];
+        pthread_mutex_unlock(&g_res_commit_mu);
     }
 '''+anchor)
     replace(gfx,'    atomic_store(&g_rec_frame, 0);','    nx_stream_stop();\n    atomic_store(&g_rec_frame, 0);')

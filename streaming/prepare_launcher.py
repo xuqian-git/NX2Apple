@@ -2,7 +2,7 @@
 """Build-time branding and update isolation. Run only in a disposable build checkout."""
 from pathlib import Path
 root=Path(__file__).resolve().parents[1]
-for rel in ['frontend/Sources/NXCore/ReleaseSource.swift','frontend/Sources/NXCore/EngineUpdater.swift','frontend/Sources/NXModel/RepoStore.swift']:
+for rel in ['frontend/Sources/NXCore/ReleaseSource.swift','frontend/Sources/NXCore/EngineUpdater.swift','frontend/Sources/NXModel/RepoStore.swift','frontend/Tests/NX2AppleTests/EngineUpdaterTests.swift']:
     p=root/rel;s=p.read_text()
     if 'LNPANDY/NX2Apple' not in s: raise SystemExit(f'Update endpoint anchor changed: {rel}')
     p.write_text(s.replace('LNPANDY/NX2Apple','xuqian-git/NX2Apple'))
