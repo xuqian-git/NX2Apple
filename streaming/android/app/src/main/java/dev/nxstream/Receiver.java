@@ -16,6 +16,7 @@ final class Receiver implements AutoCloseable {
     private final Consumer<String> status;
     private final Consumer<int[]> dimensions;
     private final Consumer<String> overlay;
+    private final AudioManager audioManager;
     private final Stats stats=new Stats();
     private final ArrayBlockingQueue<Wire.Frame> video=new ArrayBlockingQueue<>(3),audio=new ArrayBlockingQueue<>(12);
     private final AtomicBoolean alive=new AtomicBoolean(true),needKey=new AtomicBoolean(true);
@@ -23,8 +24,8 @@ final class Receiver implements AutoCloseable {
     private volatile DatagramSocket socket;
     private volatile SocketAddress peer;
     private long lastRequest;
-    Receiver(Surface surface,long token,boolean stereo,Consumer<String> status,Consumer<int[]> dimensions,Consumer<String> overlay) {
-        this.surface=surface;this.token=token;this.stereo=stereo;this.status=status;this.dimensions=dimensions;this.overlay=overlay;
+    Receiver(Surface surface,long token,boolean stereo,Consumer<String> status,Consumer<int[]> dimensions,Consumer<String> overlay,AudioManager audioManager) {
+        this.audioManager=audioManager;this.surface=surface;this.token=token;this.stereo=stereo;this.status=status;this.dimensions=dimensions;this.overlay=overlay;
         network=new Thread(this::receive,"nx-receive");decoder=new Thread(this::decode,"nx-decode");sound=new Thread(this::play,"nx-audio");ticker=new Thread(this::report,"nx-stats");
         network.start();decoder.start();sound.start();ticker.start();
     }
@@ -88,6 +89,18 @@ final class Receiver implements AutoCloseable {
         }
         throw new IllegalStateException("No hardware H.264 decoder for "+w+"x"+h+" at 60 fps. Select a lower size on iPhone.");
     }
+    // Vendor low-latency switches for decoders that do not advertise FEATURE_LowLatency. Unknown keys are ignored.
+    // Qualcomm (verified on a SA8155 car): without them c2.qti.avc.decoder stalls 200-350 ms on every IDR and
+    // holds frames for about 50 ms. MediaTek and Exynos keys are the same switch on those decoders (not device-tested).
+    private static final String[] VENDOR_LOW_LATENCY={"vendor.qti-ext-dec-low-latency.enable","vendor.qti-ext-dec-picture-order.enable","vendor.low-latency.enable","vendor.rtc-ext-dec-low-latency.enable"};
+    private MediaCodec openDecoder(String name,int width,int height,boolean vendor) throws java.io.IOException{
+        MediaCodec codec=MediaCodec.createByCodecName(name);
+        MediaFormat format=MediaFormat.createVideoFormat("video/avc",width,height);format.setInteger(MediaFormat.KEY_MAX_INPUT_SIZE,Wire.MAX);format.setInteger(MediaFormat.KEY_PRIORITY,0);format.setInteger(MediaFormat.KEY_FRAME_RATE,60);
+        if(codec.getCodecInfo().getCapabilitiesForType("video/avc").isFeatureSupported(MediaCodecInfo.CodecCapabilities.FEATURE_LowLatency))format.setInteger(MediaFormat.KEY_LOW_LATENCY,1);
+        if(vendor)for(String key:VENDOR_LOW_LATENCY)format.setInteger(key,1);
+        try{codec.configure(format,surface,null,0);codec.start();return codec;}
+        catch(RuntimeException e){codec.release();throw e;}
+    }
     private void decode(){
         MediaCodec codec=null;int width=0,height=0;boolean recovery=true;long shown=0;MediaCodec.BufferInfo info=new MediaCodec.BufferInfo();
         try{
@@ -97,12 +110,14 @@ final class Receiver implements AutoCloseable {
                     if(codec==null||width!=f.width||height!=f.height){
                         if(!f.key()){needKey.set(true);continue;}
                         if(codec!=null){codec.stop();codec.release();codec=null;}
-                        width=f.width;height=f.height;dimensions.accept(new int[]{width,height});String name=hardwareDecoder(width,height);codec=MediaCodec.createByCodecName(name);
-                        MediaFormat format=MediaFormat.createVideoFormat("video/avc",width,height);format.setInteger(MediaFormat.KEY_MAX_INPUT_SIZE,Wire.MAX);format.setInteger(MediaFormat.KEY_PRIORITY,0);format.setInteger(MediaFormat.KEY_FRAME_RATE,60);
+                        width=f.width;height=f.height;dimensions.accept(new int[]{width,height});String name=hardwareDecoder(width,height);
+                        boolean vendor=true;
+                        try{codec=openDecoder(name,width,height,true);}
+                        catch(RuntimeException e){android.util.Log.w(Stats.TAG,"decoder rejected vendor low-latency keys, retrying without: "+e);vendor=false;codec=openDecoder(name,width,height,false);}
                         boolean low=codec.getCodecInfo().getCapabilitiesForType("video/avc").isFeatureSupported(MediaCodecInfo.CodecCapabilities.FEATURE_LowLatency);
-                        if(low)format.setInteger(MediaFormat.KEY_LOW_LATENCY,1);
-                        codec.configure(format,surface,null,0);codec.start();recovery=false;
-                        status.accept(width+"×"+height+" · "+name+" · low latency "+low);
+                        recovery=false;
+                        android.util.Log.i(Stats.TAG,"decoder "+name+" "+width+"x"+height+" standard low latency "+low+" vendor keys "+vendor);
+                        status.accept(width+"×"+height+" · "+name+" · low latency "+(low?"standard":vendor?"vendor keys":"off"));
                     }
                     if(recovery){if(!f.key()){stats.awaitingKey();continue;}codec.flush();recovery=false;}
                     int index=codec.dequeueInputBuffer(0);
@@ -131,7 +146,7 @@ final class Receiver implements AutoCloseable {
         // Public API does not expose proprietary car DSP paths. Only attempt advertised direct multichannel support.
         if(channels>2&&!AudioTrack.isDirectPlaybackSupported(format,attrs))return null;
         int minimum=AudioTrack.getMinBufferSize(48000,mask,AudioFormat.ENCODING_PCM_16BIT);if(minimum<=0)return null;
-        AudioTrack track=new AudioTrack.Builder().setAudioAttributes(attrs).setAudioFormat(format).setTransferMode(AudioTrack.MODE_STREAM).setPerformanceMode(AudioTrack.PERFORMANCE_MODE_LOW_LATENCY).setBufferSizeInBytes(Math.max(minimum,480*channels*2)).build();
+        AudioTrack track=new AudioTrack.Builder().setAudioAttributes(attrs).setAudioFormat(format).setTransferMode(AudioTrack.MODE_STREAM).setPerformanceMode(AudioTrack.PERFORMANCE_MODE_LOW_LATENCY).setBufferSizeInBytes(Math.max(minimum,2*AUDIO_BACKLOG_FRAMES*channels*2)).build();
         if(track.getState()!=AudioTrack.STATE_INITIALIZED){track.release();return null;}return track;
     }
     static byte[] downmix(byte[] input,int ch){
@@ -147,26 +162,48 @@ final class Receiver implements AutoCloseable {
         }
         return out.array();
     }
+    // Game audio arrives in bursts of several thousand frames. Above this backlog new blocks are dropped. Flushing the
+    // track instead (the old 60 ms rule) fired every 170-250 ms on a car and left almost no audible sound.
+    static final int AUDIO_BACKLOG_FRAMES=5760; // 120 ms at 48 kHz
+    // The track holds twice that, so a whole burst fits and a non-blocking write is not cut short.
+    private static final AudioAttributes GAME_AUDIO=new AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_GAME).setContentType(AudioAttributes.CONTENT_TYPE_MUSIC).build();
     private void play(){
         android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_AUDIO);
-        AudioTrack track=null;int sourceChannels=0,outputChannels=0;long written=0;
+        AudioTrack track=null;int sourceChannels=0,outputChannels=0;long written=0,lastPlayed=0;
+        // Car audio policies may duck or mute players without focus, so take it with the first audio and hold it until close.
+        AudioFocusRequest focus=null;
         try{
             while(alive.get()){
                 Wire.Frame f=audio.poll(100,TimeUnit.MILLISECONDS);if(f==null)continue;
+                stats.audioBlock();
+                if(focus==null){
+                    focus=new AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN).setAudioAttributes(GAME_AUDIO)
+                        .setOnAudioFocusChangeListener(change->android.util.Log.w(Stats.TAG,"AUDIO_FOCUS change "+change)).build();
+                    android.util.Log.i(Stats.TAG,"audio focus request result "+audioManager.requestAudioFocus(focus));
+                }
                 if(track==null||sourceChannels!=f.channels){
-                    if(track!=null){track.pause();track.flush();track.release();}
-                    sourceChannels=f.channels;outputChannels=stereo?2:sourceChannels;track=makeTrack(outputChannels);
-                    if(track==null){outputChannels=2;track=makeTrack(2);}if(track==null)throw new IllegalStateException("No PCM output");
-                    written=0;track.play();status.accept("Audio: source "+sourceChannels+" → output "+outputChannels+" channels (PCM, not Atmos)");
+                    if(track!=null){track.pause();track.flush();track.release();track=null;}
+                    sourceChannels=f.channels;outputChannels=stereo?2:sourceChannels;
+                    try{track=makeTrack(outputChannels);if(track==null){outputChannels=2;track=makeTrack(2);}}catch(RuntimeException e){android.util.Log.w(Stats.TAG,"AUDIO_TRACK create failed: "+e);track=null;}
+                    if(track==null){status.accept("Audio: no PCM output, retrying");Thread.sleep(500);sourceChannels=0;continue;}
+                    written=0;lastPlayed=0;track.play();status.accept("Audio: source "+sourceChannels+" → output "+outputChannels+" channels (PCM, not Atmos)");
+                    android.util.Log.i(Stats.TAG,"audio track "+sourceChannels+"->"+outputChannels+" channels, buffer "+track.getBufferSizeInFrames()+" frames");
                 }
                 long played=track.getPlaybackHeadPosition()&0xffffffffL;
-                if(written-played>2880){track.pause();track.flush();written=0;track.play();audio.clear();}
+                if(played>=lastPlayed)stats.audioHead(played-lastPlayed,written-played);lastPlayed=played;
+                if(written-played>AUDIO_BACKLOG_FRAMES){stats.audioDrop();continue;}
                 byte[] data=outputChannels==2?downmix(f.data,sourceChannels):f.data;
-                int offset=0;
-                while(offset<data.length&&alive.get()){int n=track.write(data,offset,data.length-offset,AudioTrack.WRITE_NON_BLOCKING);if(n<0)throw new IllegalStateException("AudioTrack write "+n);if(n==0)break;offset+=n;written+=n/(outputChannels*2);}
+                int offset=0,n=0;
+                while(offset<data.length&&alive.get()){n=track.write(data,offset,data.length-offset,AudioTrack.WRITE_NON_BLOCKING);if(n<=0)break;offset+=n;written+=n/(outputChannels*2);}
+                if(n<0){
+                    // A dead or invalidated track (route change, audio server restart) is rebuilt with the next block.
+                    android.util.Log.w(Stats.TAG,"AUDIO_TRACK write error "+n+", recreating");stats.audioReset();
+                    try{track.release();}catch(Exception ignored){}track=null;
+                }else if(offset<data.length)stats.audioDrop();
             }
-        }catch(Exception e){if(alive.get())status.accept("Audio: "+e.getMessage());}
-        finally{if(track!=null){try{track.pause();track.flush();}catch(Exception ignored){}track.release();}}
+        }catch(InterruptedException e){Thread.currentThread().interrupt();}
+        catch(Exception e){if(alive.get())status.accept("Audio: "+e.getMessage());}
+        finally{if(track!=null){try{track.pause();track.flush();}catch(Exception ignored){}track.release();}if(focus!=null)audioManager.abandonAudioFocusRequest(focus);}
     }
     @Override public void close(){alive.set(false);DatagramSocket s=socket;if(s!=null)s.close();network.interrupt();decoder.interrupt();sound.interrupt();ticker.interrupt();try{network.join(500);decoder.join(500);sound.join(500);ticker.join(500);}catch(InterruptedException e){Thread.currentThread().interrupt();}}
 }

@@ -33,7 +33,7 @@ public final class MainActivity extends Activity implements SurfaceHolder.Callba
         controls=new LinearLayout(this);controls.setOrientation(LinearLayout.VERTICAL);controls.setPadding(24,16,24,16);controls.setBackgroundColor(0xdd161616);
         TextView title=new TextView(this);title.setText("NXStream prototype · UDP 48000\nReceiver IP: "+ipAddresses());controls.addView(title);
         stereo=new CheckBox(this);stereo.setText("Force stereo (use if car multichannel is silent)");controls.addView(stereo);
-        stats=new TextView(this);stats.setTypeface(android.graphics.Typeface.MONOSPACE);stats.setTextSize(11);stats.setTextColor(0xffffffff);stats.setBackgroundColor(0x99000000);stats.setPadding(12,8,12,8);stats.setVisibility(View.GONE);
+        stats=new TextView(this);stats.setTypeface(android.graphics.Typeface.MONOSPACE);stats.setTextSize(14);stats.setTextColor(0xffffffff);stats.setBackgroundColor(0x99000000);stats.setPadding(12,8,12,8);stats.setVisibility(View.GONE);
         showStats=new CheckBox(this);showStats.setText("Show latency and stall statistics on the picture");showStats.setChecked(getPreferences(0).getBoolean("showStats",true));
         showStats.setOnCheckedChangeListener((v,on)->{getPreferences(0).edit().putBoolean("showStats",on).apply();if(!on)stats.setVisibility(View.GONE);});controls.addView(showStats);
         TextView capability=new TextView(this);StringBuilder caps=new StringBuilder("Audio devices (reported, not verified):\n");
@@ -57,7 +57,7 @@ public final class MainActivity extends Activity implements SurfaceHolder.Callba
         if(!ready)return;
         if(receiver!=null)receiver.close();messages.clear();
         receiver=new Receiver(surface.getHolder().getSurface(),1L,stereo.isChecked(),message->runOnUiThread(()->{if(status!=null){messages.addLast(message);while(messages.size()>4)messages.removeFirst();status.setText(String.join("\n",messages));}}),size->runOnUiThread(()->{videoWidth=size[0];videoHeight=size[1];fitSurface();}),
-            text->runOnUiThread(()->{if(stats!=null&&showStats.isChecked()){stats.setText(text);stats.setVisibility(View.VISIBLE);}}));status.setText("Listening on UDP 48000…");
+            text->runOnUiThread(()->{if(stats!=null&&showStats.isChecked()){stats.setText(text);stats.setVisibility(View.VISIBLE);}}),getSystemService(AudioManager.class));status.setText("Listening on UDP 48000…");
     }
     @Override public void surfaceCreated(SurfaceHolder h){ready=true;start();}
     @Override public void surfaceChanged(SurfaceHolder h,int f,int w,int height){}

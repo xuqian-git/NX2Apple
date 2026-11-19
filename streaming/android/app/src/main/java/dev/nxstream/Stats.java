@@ -33,6 +33,7 @@ final class Stats {
     private long packets, bytes, framesRx, keyframes, shown, keyRequests, gaps, expired, overflow, busy, awaitingKey, freezes, maxGapNs;
     private final Window e2e=new Window(), net=new Window(), queue=new Window(), decode=new Window();
     private String keyReasons="";
+    private long audioBlocks, audioHead, audioResets, audioDrops, audioBacklog;
     // Session totals.
     private long totalFreezes, totalFreezeMs, totalPackets;
     private long lastShownNs;
@@ -109,6 +110,10 @@ final class Stats {
     synchronized void overflow(long nowNs){overflow++;cause("QUEUE_OVERFLOW video queue full",nowNs);}
     synchronized void decoderBusy(long nowNs){busy++;cause("DECODER_BUSY no input buffer; flushing for keyframe",nowNs);}
     synchronized void awaitingKey(){awaitingKey++;}
+    synchronized void audioBlock(){audioBlocks++;}
+    synchronized void audioHead(long advanced,long backlog){audioHead+=advanced;audioBacklog=Math.max(audioBacklog,backlog);}
+    synchronized void audioReset(){audioResets++;}
+    synchronized void audioDrop(){audioDrops++;}
     synchronized void keyRequest(String reason){keyRequests++;if(!keyReasons.contains(reason))keyReasons+=(keyReasons.isEmpty()?"":",")+reason;}
 
     /** Ends the window. Returns the overlay text. */
@@ -128,11 +133,13 @@ final class Stats {
                 expired,gaps,overflow,busy,awaitingKey,keyRequests,keyReasons.isEmpty()?"":" ("+keyReasons+")")+"\n"
             +sender;
         Log.i(TAG,String.format(Locale.ROOT,
-            "e2e=%s/%s net=%s/%s queue=%s decode=%s/%s rtt=%.1f rx=%d key=%d shown=%d mbps=%.1f loss=%d/%d freeze=%d maxgap=%d incomplete=%d gaps=%d overflow=%d busy=%d awaitkey=%d keyreq=%d%s snd_err=%s errno=%s snd_skip=%s enc_max=%s",
+            "e2e=%s/%s net=%s/%s queue=%s decode=%s/%s rtt=%.1f rx=%d key=%d shown=%d mbps=%.1f loss=%d/%d freeze=%d maxgap=%d incomplete=%d gaps=%d overflow=%d busy=%d awaitkey=%d keyreq=%d%s snd_err=%s errno=%s snd_skip=%s enc_max=%s audio_blocks=%d audio_played=%d audio_backlog_max=%d audio_resets=%d audio_drops=%d",
             e2e.avg(),e2e.peak(),net.avg(),net.peak(),queue.avg(),decode.avg(),decode.peak(),rttUs/1000.0,framesRx,keyframes,shown,mbps,lossPackets,sentPackets,
             freezes,maxGapNs/1_000_000,expired,gaps,overflow,busy,awaitingKey,keyRequests,keyReasons.isEmpty()?"":"("+keyReasons+")",
             senderStats?String.valueOf(sendErrors):"-",senderStats?String.valueOf(pong.lastErrno):"-",
-            senderStats?String.valueOf(skipped):"-",senderStats?String.format(Locale.ROOT,"%.1f",encodeMax/1000.0):"-"));
+            senderStats?String.valueOf(skipped):"-",senderStats?String.format(Locale.ROOT,"%.1f",encodeMax/1000.0):"-",
+            audioBlocks,audioHead,audioBacklog,audioResets,audioDrops));
+        audioBlocks=audioHead=audioResets=audioDrops=audioBacklog=0;
         packets=bytes=framesRx=keyframes=shown=keyRequests=gaps=expired=overflow=busy=awaitingKey=freezes=maxGapNs=0;
         lossPackets=sentPackets=sendErrors=skipped=encodeMax=0;keyReasons="";
         e2e.reset();net.reset();queue.reset();decode.reset();
