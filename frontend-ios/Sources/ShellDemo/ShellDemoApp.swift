@@ -14,6 +14,16 @@ import UIKit
         ProcessInfo.processInfo.arguments.contains("--host")
         #endif
     }
+    private static let streamTestSetup: Void = {
+        if ProcessInfo.processInfo.arguments.contains("--stream-test") {
+            let store = ShellSettingsStore.current
+            store.storeStreamEnabled(false)
+            store.storeStreamBlack(true)
+            store.storeStreamSize("auto")
+            store.storeStreamReceiver(StreamReceiver(host: "192.168.99.2", name: "Test Car", width: 2560, height: 1600, modes: ["2560x1600", "1920x1200"]))
+        }
+    }()
+    init() { _ = Self.streamTestSetup }
     var body: some Scene {
         WindowGroup {
             if hostMode { HostDemoScreen() } else { DemoScreen() }

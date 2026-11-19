@@ -14,14 +14,15 @@ final class Receiver implements AutoCloseable {
     private final long token;
     private final boolean stereo;
     private final Consumer<String> status;
+    private final Consumer<int[]> dimensions;
     private final ArrayBlockingQueue<Wire.Frame> video=new ArrayBlockingQueue<>(3),audio=new ArrayBlockingQueue<>(12);
     private final AtomicBoolean alive=new AtomicBoolean(true),needKey=new AtomicBoolean(true);
     private final Thread network,decoder,sound;
     private volatile DatagramSocket socket;
     private volatile SocketAddress peer;
     private long lastRequest;
-    Receiver(Surface surface,long token,boolean stereo,Consumer<String> status) {
-        this.surface=surface;this.token=token;this.stereo=stereo;this.status=status;
+    Receiver(Surface surface,long token,boolean stereo,Consumer<String> status,Consumer<int[]> dimensions) {
+        this.surface=surface;this.token=token;this.stereo=stereo;this.status=status;this.dimensions=dimensions;
         network=new Thread(this::receive,"nx-receive");decoder=new Thread(this::decode,"nx-decode");sound=new Thread(this::play,"nx-audio");
         network.start();decoder.start();sound.start();
     }
@@ -76,7 +77,7 @@ final class Receiver implements AutoCloseable {
                     if(codec==null||width!=f.width||height!=f.height){
                         if(!f.key()){needKey.set(true);continue;}
                         if(codec!=null){codec.stop();codec.release();codec=null;}
-                        width=f.width;height=f.height;String name=hardwareDecoder(width,height);codec=MediaCodec.createByCodecName(name);
+                        width=f.width;height=f.height;dimensions.accept(new int[]{width,height});String name=hardwareDecoder(width,height);codec=MediaCodec.createByCodecName(name);
                         MediaFormat format=MediaFormat.createVideoFormat("video/avc",width,height);format.setInteger(MediaFormat.KEY_MAX_INPUT_SIZE,Wire.MAX);format.setInteger(MediaFormat.KEY_PRIORITY,0);format.setInteger(MediaFormat.KEY_FRAME_RATE,60);
                         boolean low=codec.getCodecInfo().getCapabilitiesForType("video/avc").isFeatureSupported(MediaCodecInfo.CodecCapabilities.FEATURE_LowLatency);
                         if(low)format.setInteger(MediaFormat.KEY_LOW_LATENCY,1);

@@ -42,6 +42,8 @@ targets:
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         CFBundleShortVersionString: $(MARKETING_VERSION)
         UILaunchScreen: {}
+        NSLocalNetworkUsageDescription: "Find your Android receiver and stream game video and audio on the local network."
+        NSBonjourServices: ["_nxstream._udp"]
         UIFileSharingEnabled: true          # Documents (log.txt, shell-log.txt, games/<id>/) visible in the Files app
         LSSupportsOpeningDocumentsInPlace: true
         NSPhotoLibraryAddUsageDescription: "Saves square game icons to Photos so you can use them on the Home Screen."

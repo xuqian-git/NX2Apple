@@ -1,7 +1,7 @@
 name: NXStream build and upstream sync
 on:
   push:
-    branches: [main, 'feature/nxstream']
+    branches: [main, 'feature/**']
     paths: ['streaming/**', '.github/workflows/nxstream.yml', '.upstream-ref', 'patches/**', 'frontend/**', 'frontend-ios/**', 'tools/**']
   workflow_dispatch:
     inputs:

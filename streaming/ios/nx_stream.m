@@ -10,7 +10,7 @@
 #include <unistd.h>
 #include <pthread.h>
 
-// A bounded, LAN-only prototype. Token filters unrelated sessions, but does not encrypt traffic.
+// A bounded, LAN-only prototype. The compatibility field is not authentication.
 static int sockfd=-1, width=1920, height=1080;
 static uint64_t session_token;
 static _Atomic int running, busy, failed, force_key=1;
@@ -109,19 +109,31 @@ static void encoded(void *ctx,void *ref,OSStatus status,VTEncodeInfoFlags flags,
 }
 static int initialize(id<MTLDevice> device){
     const char *host=getenv("DM_STREAM_HOST"),*token=getenv("DM_STREAM_TOKEN"),*res=getenv("DM_STREAM_SIZE");
-    if(!host||!token||strlen(token)!=16||strspn(token,"0123456789abcdefABCDEF")!=16)return 0;
-    session_token=strtoull(token,NULL,16);if(!session_token)return 0;
-    if(res){if(!strcmp(res,"2880x1620")){width=2880;height=1620;}else if(!strcmp(res,"2560x1440")){width=2560;height=1440;}else if(strcmp(res,"1920x1080"))return 0;}
+    if(!host)return 0;
+    session_token=1; // Fixed compatibility field. Pairing never requires user input.
+    if(token && strlen(token)==16 && strspn(token,"0123456789abcdefABCDEF")==16)session_token=strtoull(token,NULL,16);
+
     struct sockaddr_in address={.sin_family=AF_INET,.sin_port=htons(48000)};
     if(inet_pton(AF_INET,host,&address.sin_addr)!=1)return 0;
     sockfd=socket(AF_INET,SOCK_DGRAM,0);if(sockfd<0)return 0;
     int size=1024*1024;setsockopt(sockfd,SOL_SOCKET,SO_SNDBUF,&size,sizeof size);fcntl(sockfd,F_SETFL,O_NONBLOCK);
     if(connect(sockfd,(struct sockaddr *)&address,sizeof address)){close(sockfd);sockfd=-1;return 0;}
     NSDictionary *spec=@{(__bridge NSString *)kVTVideoEncoderSpecification_RequireHardwareAcceleratedVideoEncoder:@YES,(__bridge NSString *)kVTVideoEncoderSpecification_EnableLowLatencyRateControl:@YES};
-    OSStatus st=VTCompressionSessionCreate(NULL,width,height,kCMVideoCodecType_H264,(__bridge CFDictionaryRef)spec,NULL,NULL,encoded,NULL,&encoder);
-    if(st){fprintf(stderr,"[NXStream] hardware encoder creation failed: %d\n",(int)st);return 0;}
-    NSDictionary *props=@{(__bridge NSString *)kVTCompressionPropertyKey_RealTime:@YES,(__bridge NSString *)kVTCompressionPropertyKey_AllowFrameReordering:@NO,(__bridge NSString *)kVTCompressionPropertyKey_ExpectedFrameRate:@60,(__bridge NSString *)kVTCompressionPropertyKey_MaxKeyFrameInterval:@60,(__bridge NSString *)kVTCompressionPropertyKey_AverageBitRate:@(width==2880?35000000:width==2560?28000000:18000000),(__bridge NSString *)kVTCompressionPropertyKey_ProfileLevel:(__bridge NSString *)kVTProfileLevel_H264_High_AutoLevel};
-    if(VTSessionSetProperties(encoder,(__bridge CFDictionaryRef)props)!=noErr)return 0;
+    const char *advertised=getenv("DM_STREAM_MODES");
+    NSString *choices=(res && strcmp(res,"auto")) ? @(res) : (advertised ? @(advertised) : @"1920x1080,1280x720");
+    BOOL configured=NO;
+    for(NSString *choice in [choices componentsSeparatedByString:@","]){
+        int w=0,h=0;char extra;
+        if(sscanf(choice.UTF8String,"%dx%d%c",&w,&h,&extra)!=2 || w<320 || h<240 || w>4096 || h>4096 || (w&1) || (h&1) || (int64_t)w*h>4096LL*2160)continue;
+        width=w;height=h;
+        OSStatus st=VTCompressionSessionCreate(NULL,width,height,kCMVideoCodecType_H264,(__bridge CFDictionaryRef)spec,NULL,NULL,encoded,NULL,&encoder);
+        if(st)continue;
+        int bitrate=MAX(4000000,MIN(60000000,(int)((int64_t)width*height*9)));
+        NSDictionary *props=@{(__bridge NSString *)kVTCompressionPropertyKey_RealTime:@YES,(__bridge NSString *)kVTCompressionPropertyKey_AllowFrameReordering:@NO,(__bridge NSString *)kVTCompressionPropertyKey_ExpectedFrameRate:@60,(__bridge NSString *)kVTCompressionPropertyKey_MaxKeyFrameInterval:@60,(__bridge NSString *)kVTCompressionPropertyKey_AverageBitRate:@(bitrate),(__bridge NSString *)kVTCompressionPropertyKey_ProfileLevel:(__bridge NSString *)kVTProfileLevel_H264_High_AutoLevel};
+        if(VTSessionSetProperties(encoder,(__bridge CFDictionaryRef)props)==noErr && VTCompressionSessionPrepareToEncodeFrames(encoder)==noErr){configured=YES;break;}
+        VTCompressionSessionInvalidate(encoder);CFRelease(encoder);encoder=NULL;
+    }
+    if(!configured){fprintf(stderr,"[NXStream] no supported hardware encoding size\n");return 0;}
     NSDictionary *color=@{(__bridge NSString *)kVTCompressionPropertyKey_ColorPrimaries:(__bridge NSString *)kCVImageBufferColorPrimaries_ITU_R_709_2,(__bridge NSString *)kVTCompressionPropertyKey_TransferFunction:(__bridge NSString *)kCVImageBufferTransferFunction_sRGB,(__bridge NSString *)kVTCompressionPropertyKey_YCbCrMatrix:(__bridge NSString *)kCVImageBufferYCbCrMatrix_ITU_R_709_2};
     if(VTSessionSetProperties(encoder,(__bridge CFDictionaryRef)color)!=noErr)return 0;
     NSDictionary *attrs=@{(__bridge NSString *)kCVPixelBufferWidthKey:@(width),(__bridge NSString *)kCVPixelBufferHeightKey:@(height),(__bridge NSString *)kCVPixelBufferPixelFormatTypeKey:@(kCVPixelFormatType_32BGRA),(__bridge NSString *)kCVPixelBufferMetalCompatibilityKey:@YES,(__bridge NSString *)kCVPixelBufferIOSurfacePropertiesKey:@{}};

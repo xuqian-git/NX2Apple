@@ -31,6 +31,12 @@
 	<string>1.0</string>
 	<key>CFBundleVersion</key>
 	<string>1</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_nxstream._udp</string>
+	</array>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Find your Android receiver on the local network.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>Saves square game icons to Photos so you can use them on the Home Screen.</string>
 </dict>

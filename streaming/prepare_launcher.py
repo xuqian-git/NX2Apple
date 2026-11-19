@@ -18,6 +18,4 @@ s=s.replace(anchor,anchor+'''        // NXStream prototypes always use their bun
             UserDefaults.standard.set(false, forKey: "autoUpdateApp")
         }
 ''');p.write_text(s)
-p=root/'frontend-ios/Shell/project-shell.yml';s=p.read_text();anchor='        UIFileSharingEnabled: true'
-if s.count(anchor)!=1: raise SystemExit('Shell privacy anchor changed')
-s=s.replace(anchor,'        NSLocalNetworkUsageDescription: "Stream game video and audio to your receiver on the local network."\n'+anchor);p.write_text(s)
+# The shared shell declares its discovery services and local-network usage in its project template.

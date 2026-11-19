@@ -1218,6 +1218,7 @@ public struct ShellHostConfig: Sendable {
             titleID: id, name: entry.title, manifest: manifest, directory: entry.directory, frameworkURL: framework, dataURL: dataURL,
             romfsURL: resolved.romfsURL, appFolder: gameAppFolder, environment: launchEnvironment(profile: profile, id: id),
             cloudSavesURL: cloud, shellEnvironment: shellSettings.gameDefaults,
+            streamingEnvironment: shellSettings.streamingEnvironment,
             shellFallbackKeys: launchShellFallbackKeys(profile: profile, id: id),
             fallbackBundledFrameworkURL: latestEntry.fallbackBundledFrameworkURL)
         if case .trailer = shaderSource {

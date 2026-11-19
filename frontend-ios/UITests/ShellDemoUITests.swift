@@ -11,7 +11,7 @@ import XCTest
         }
     }
     private func launch(_ screen: String) {
-        app.launchArguments = ["--screen", screen] + extraArguments
+        app.launchArguments = ["--screen", screen, "-AppleLanguages", "(en)", "-AppleLocale", "en_US"] + extraArguments
         app.launch()
         let ready = screen.hasPrefix("controllers") ? "controllers.close" : screen == "settings" ? "library.back" : screen == "shell-settings" ? "shellSettings.close" : "controllers.open"
         XCTAssertTrue(app.buttons[ready].waitForExistence(timeout: 10))
@@ -80,6 +80,32 @@ import XCTest
         capture("recent-selection-only")
         app.buttons["state.action"].tap()
         XCTAssertTrue(app.alerts["Demo action"].waitForExistence(timeout: 5))
+    }
+
+    func testStreamingSettingsUseAutomaticResolutionWithoutCredentials() {
+        extraArguments = ["--samples", "--stream-test"]
+        launch("shell-settings")
+        app.buttons["stream.open"].tap()
+        let permission = XCUIApplication(bundleIdentifier: "com.apple.springboard").buttons["Allow"]
+        if permission.waitForExistence(timeout: 3) { permission.tap() }
+        let enabled = app.switches["stream.enabled"]
+        XCTAssertTrue(enabled.waitForExistence(timeout: 5))
+        enabled.coordinate(withNormalizedOffset: CGVector(dx: 0.92, dy: 0.5)).tap()
+        XCTAssertEqual(enabled.value as? String, "1")
+        XCTAssertTrue(app.buttons["stream.scan"].exists)
+        XCTAssertTrue(app.descendants(matching: .any)["stream.selected"].exists)
+        let resolution = app.buttons["stream.resolution"]
+        XCTAssertTrue(resolution.exists)
+        resolution.tap()
+        XCTAssertTrue(app.buttons["2560x1600"].waitForExistence(timeout: 3))
+        app.buttons["2560x1600"].tap()
+        let black = app.switches["stream.black"]
+        if !black.isHittable { app.swipeUp() }
+        black.coordinate(withNormalizedOffset: CGVector(dx: 0.92, dy: 0.5)).tap()
+        XCTAssertEqual(black.value as? String, "0")
+        XCTAssertEqual(app.textFields.count, 0)
+        XCTAssertEqual(app.secureTextFields.count, 0)
+        capture("stream-settings-no-credentials")
     }
 
     func testAppSettingsFolderRowLabels() {
