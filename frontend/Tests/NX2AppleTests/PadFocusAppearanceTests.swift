@@ -52,8 +52,8 @@ import XCTest
                 let bitmap = try XCTUnwrap(host.bitmapImageRepForCachingDisplay(in: host.bounds))
                 host.cacheDisplay(in: host.bounds, to: bitmap)
                 func red(_ x: Double, _ y: Double) -> Bool {
-                    let pixel = bitmap.colorAt(x: Int(x * Double(bitmap.pixelsWide) / host.bounds.width),
-                                               y: Int(y * Double(bitmap.pixelsHigh) / host.bounds.height))!.usingColorSpace(.sRGB)!
+                    let pixel = bitmap.sRGBColor(x: Int(x * Double(bitmap.pixelsWide) / host.bounds.width),
+                                                 y: Int(y * Double(bitmap.pixelsHigh) / host.bounds.height))!
                     return pixel.redComponent > 0.7 && pixel.greenComponent < 0.4
                 }
                 XCTAssertTrue(red(12 + width / 2, 13), name)
