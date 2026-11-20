@@ -653,7 +653,7 @@ import XCTest
         settle()
         let bitmap = try XCTUnwrap(host.bitmapImageRepForCachingDisplay(in: host.bounds))
         host.cacheDisplay(in: host.bounds, to: bitmap)
-        let color = try XCTUnwrap(bitmap.colorAt(x: bitmap.pixelsWide / 2, y: bitmap.pixelsHigh / 2)?.usingColorSpace(.deviceRGB))
+        let color = try XCTUnwrap(bitmap.sRGBColor(x: bitmap.pixelsWide / 2, y: bitmap.pixelsHigh / 2))
         XCTAssertGreaterThan(color.redComponent, 0.8)
         XCTAssertLessThan(color.greenComponent, 0.2)
     }
