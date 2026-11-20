@@ -105,6 +105,7 @@ public struct ShellHostBeacon: Codable, Equatable, Sendable {
 
     public var schema: Int
     public var glueVersion: Int
+    public var streamingSettingsVersion: Int?
     public var bundleID: String
     public var teamID: String
     public var chain: String
@@ -112,9 +113,10 @@ public struct ShellHostBeacon: Codable, Equatable, Sendable {
     public var expiresAtEpoch: Int64?
 
     public init(schema: Int = Self.currentSchema, glueVersion: Int = 1, bundleID: String, teamID: String,
-                chain: String, version: String, expiresAtEpoch: Int64? = nil) {
+                chain: String, version: String, expiresAtEpoch: Int64? = nil, streamingSettingsVersion: Int? = 1) {
         self.schema = schema
         self.glueVersion = glueVersion
+        self.streamingSettingsVersion = streamingSettingsVersion
         self.bundleID = bundleID
         self.teamID = teamID
         self.chain = chain

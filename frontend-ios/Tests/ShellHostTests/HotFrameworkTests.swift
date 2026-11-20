@@ -57,6 +57,7 @@ import Testing
         let encoded = try JSONEncoder().encode(beacon)
         let decoded = try JSONDecoder().decode(ShellHostBeacon.self, from: encoded)
         #expect(decoded == beacon)
+        #expect(decoded.streamingSettingsVersion == 1)
         _ = box
     }
 

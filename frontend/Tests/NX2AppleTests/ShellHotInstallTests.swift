@@ -328,6 +328,30 @@ import XCTest
         XCTAssertEqual(calls.filter { $0.hasPrefix("xcodebuild") }.count, 1, "failed hot push must automatically recover via xcodebuild")
     }
 
+    func testOldShellWithoutStreamingSettingsIsFullyReinstalled() throws {
+        let xcrun = try makeXcrun()
+        let repo = try makeRepo()
+        let root = path("shell-root")
+        let fw = try makeSignableFramework(id: firstID, name: "Game")
+        var inst = ShellInstaller(xcrun: xcrun, repo: repo, python: "/usr/bin/python3", root: root, device: device, team: team)
+        inst.resources = nil
+        inst.defaults = testDefaults
+        inst.allowHotInstall = true
+        inst.signingIdentity = { _, _ in "-" }
+        XCTAssertTrue(inst.installBuilt(framework: fw, titleID: firstID, name: "Game").ok)
+        try writeDeviceBeacon(teamID: team, expiresIn: 5 * 86400, nowEpoch: Int64(Date().timeIntervalSince1970))
+        let beaconPath = container + "/\(ShellLibrary.defaultBundleID)/" + ShellHotInstall.beaconRemotePath
+        var old = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: URL(fileURLWithPath: beaconPath))) as? [String: Any])
+        old.removeValue(forKey: "streamingSettingsVersion")
+        try JSONSerialization.data(withJSONObject: old).write(to: URL(fileURLWithPath: beaconPath))
+        try "".write(toFile: state + "/calls.txt", atomically: true, encoding: .utf8)
+        let result = inst.installBuilt(framework: fw, titleID: firstID, name: "Game")
+        XCTAssertTrue(result.ok, result.message)
+        XCTAssertEqual(calls.filter { $0.hasPrefix("xcodebuild") }.count, 1)
+        XCTAssertEqual(calls.filter { $0.hasPrefix("devicectl device install app") }.count, 1)
+        XCTAssertFalse(calls.contains { $0.contains("Documents/Frameworks/.staging-") })
+    }
+
     func testHotInstallIsEnabledByDefaultAndCanBeDisabledToFallBackToXcodebuild() throws {
         let xcrun = try makeXcrun()
         let repo = try makeRepo()

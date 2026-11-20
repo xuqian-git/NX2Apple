@@ -13,7 +13,8 @@ public final class MainActivity extends Activity implements SurfaceHolder.Callba
     private TextView status;
     private LinearLayout controls;
     private Discovery discovery;
-    private CheckBox stereo;
+    private CheckBox stereo,showStats;
+    private TextView stats;
     private Receiver receiver;
     private boolean ready;
     private int videoWidth=16,videoHeight=9;
@@ -32,6 +33,9 @@ public final class MainActivity extends Activity implements SurfaceHolder.Callba
         controls=new LinearLayout(this);controls.setOrientation(LinearLayout.VERTICAL);controls.setPadding(24,16,24,16);controls.setBackgroundColor(0xdd161616);
         TextView title=new TextView(this);title.setText("NXStream prototype · UDP 48000\nReceiver IP: "+ipAddresses());controls.addView(title);
         stereo=new CheckBox(this);stereo.setText("Force stereo (use if car multichannel is silent)");controls.addView(stereo);
+        stats=new TextView(this);stats.setTypeface(android.graphics.Typeface.MONOSPACE);stats.setTextSize(14);stats.setTextColor(0xffffffff);stats.setBackgroundColor(0x99000000);stats.setPadding(12,8,12,8);stats.setVisibility(View.GONE);
+        showStats=new CheckBox(this);showStats.setText("Show latency and stall statistics on the picture");showStats.setChecked(getPreferences(0).getBoolean("showStats",true));
+        showStats.setOnCheckedChangeListener((v,on)->{getPreferences(0).edit().putBoolean("showStats",on).apply();if(!on)stats.setVisibility(View.GONE);});controls.addView(showStats);
         TextView capability=new TextView(this);StringBuilder caps=new StringBuilder("Audio devices (reported, not verified):\n");
         for(AudioDeviceInfo d:((AudioManager)getSystemService(AUDIO_SERVICE)).getDevices(AudioManager.GET_DEVICES_OUTPUTS))caps.append(d.getProductName()).append(" channels ").append(Arrays.toString(d.getChannelCounts())).append('\n');
         capability.setText(caps);controls.addView(capability);
@@ -39,6 +43,7 @@ public final class MainActivity extends Activity implements SurfaceHolder.Callba
         status=new TextView(this);status.setText("Open Streaming in the iPhone app settings and select this receiver.\nTrusted LAN only; this prototype does not encrypt media.");controls.addView(status);
         Button hide=new Button(this);hide.setText("Hide controls (tap picture to show)");hide.setOnClickListener(v->controls.setVisibility(View.GONE));controls.addView(hide);
         ScrollView scroll=new ScrollView(this);scroll.addView(controls);root.addView(scroll,new FrameLayout.LayoutParams(-1,-2,Gravity.TOP));
+        root.addView(stats,new FrameLayout.LayoutParams(-2,-2,Gravity.BOTTOM|Gravity.START));
         surface.setOnClickListener(v->controls.setVisibility(View.VISIBLE));setContentView(root);
         getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_FULLSCREEN|View.SYSTEM_UI_FLAG_HIDE_NAVIGATION|View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
     }
@@ -51,7 +56,8 @@ public final class MainActivity extends Activity implements SurfaceHolder.Callba
     private void start(){
         if(!ready)return;
         if(receiver!=null)receiver.close();messages.clear();
-        receiver=new Receiver(surface.getHolder().getSurface(),1L,stereo.isChecked(),message->runOnUiThread(()->{if(status!=null){messages.addLast(message);while(messages.size()>4)messages.removeFirst();status.setText(String.join("\n",messages));}}),size->runOnUiThread(()->{videoWidth=size[0];videoHeight=size[1];fitSurface();}));status.setText("Listening on UDP 48000…");
+        receiver=new Receiver(surface.getHolder().getSurface(),1L,stereo.isChecked(),message->runOnUiThread(()->{if(status!=null){messages.addLast(message);while(messages.size()>4)messages.removeFirst();status.setText(String.join("\n",messages));}}),size->runOnUiThread(()->{videoWidth=size[0];videoHeight=size[1];fitSurface();}),
+            text->runOnUiThread(()->{if(stats!=null&&showStats.isChecked()){stats.setText(text);stats.setVisibility(View.VISIBLE);}}),getSystemService(AudioManager.class));status.setText("Listening on UDP 48000…");
     }
     @Override public void surfaceCreated(SurfaceHolder h){ready=true;start();}
     @Override public void surfaceChanged(SurfaceHolder h,int f,int w,int height){}
